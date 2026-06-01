@@ -3,1579 +3,1428 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sistema de Costeo · Pastelería</title>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-
-<!-- Firebase SDK -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getDatabase, ref, set, onValue, update, remove, push } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
-  // ╔══════════════════════════════════════════════════════════════════╗
-  // ║  🔧 CONFIGURACIÓN FIREBASE — EDITA ESTOS VALORES               ║
-  // ║                                                                  ║
-  // ║  1. Ve a https://console.firebase.google.com                    ║
-  // ║  2. Crea un proyecto nuevo (ej: "pasteleria-costeo")            ║
-  // ║  3. En el proyecto → "Realtime Database" → Crear base de datos  ║
-  // ║     Elige modo "Comenzar en modo de prueba" (30 días gratis)    ║
-  // ║  4. Ve a Configuración del proyecto (⚙️) → Tus apps → Web (</>)║
-  // ║  5. Registra la app y copia los valores aquí abajo              ║
-  // ║  6. Comparte el archivo HTML con tu colega — ¡listo!            ║
-  // ╚══════════════════════════════════════════════════════════════════╝
-  const firebaseConfig = {
-    apiKey:            "AIzaSyB92xynqqBls4J5dosATKkq_sovcJkwz8Y",
-    authDomain:        "pasteleria-costeo.firebaseapp.com",
-    databaseURL:       "https://pasteleria-costeo-default-rtdb.firebaseio.com",
-    projectId:         "pasteleria-costeo",
-    storageBucket:     "pasteleria-costeo.firebasestorage.app",
-    messagingSenderId: "844436893253",
-    appId:             "1:844436893253:web:6035f1e3fb5855501dfd2c"
-  };
-
-  // Detectar si aún no está configurado
-  const IS_CONFIGURED = !firebaseConfig.apiKey.includes("TU_API_KEY");
-
-  let db, fbRef;
-  if (IS_CONFIGURED) {
-    const app = initializeApp(firebaseConfig);
-    db = getDatabase(app);
-    fbRef = (path) => ref(db, path);
-  }
-
-  // ════════════════════════════════════════════════
-  // RECETAS (fijas, vienen del Excel)
-  // ════════════════════════════════════════════════
-  const RECIPES = {"Brownie": {"codigo": "3001", "ingredientes": [{"ingrediente": "chocolate leche", "unidad": "g", "cantidad": 300.0}, {"ingrediente": "mantequilla", "unidad": "g", "cantidad": 200.0}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 0.35}, {"ingrediente": "huevos", "unidad": "un", "cantidad": 4.0}, {"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 0.15}, {"ingrediente": "cacao amargo", "unidad": "g", "cantidad": 60.0}, {"ingrediente": "sal", "unidad": "kg", "cantidad": 0.004}]}, "Brownie pistacho": {"codigo": "3002", "ingredientes": [{"ingrediente": "chocolate leche", "unidad": "g", "cantidad": 300.0}, {"ingrediente": "mantequilla", "unidad": "g", "cantidad": 200.0}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 0.35}, {"ingrediente": "huevos", "unidad": "un", "cantidad": 4.0}, {"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 0.15}, {"ingrediente": "cacao amargo", "unidad": "g", "cantidad": 60.0}, {"ingrediente": "sal", "unidad": "kg", "cantidad": 0.004}, {"ingrediente": "chocolate blanco", "unidad": "kg", "cantidad": 0.15}, {"ingrediente": "crema", "unidad": "l", "cantidad": 0.1}, {"ingrediente": "pasta de pistacho", "unidad": "g", "cantidad": 60.0}, {"ingrediente": "pistacho molido", "unidad": "g", "cantidad": 50.0}]}, "Brownie Ferrero": {"codigo": "3003", "ingredientes": [{"ingrediente": "chocolate leche", "unidad": "g", "cantidad": 300.0}, {"ingrediente": "mantequilla", "unidad": "g", "cantidad": 200.0}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 0.35}, {"ingrediente": "huevos", "unidad": "un", "cantidad": 4.0}, {"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 0.15}, {"ingrediente": "cacao amargo", "unidad": "g", "cantidad": 60.0}, {"ingrediente": "sal", "unidad": "kg", "cantidad": 0.004}, {"ingrediente": "chocolate leche", "unidad": "kg", "cantidad": 0.15}, {"ingrediente": "crema", "unidad": "l", "cantidad": 0.1}, {"ingrediente": "pasta avellana europea", "unidad": "g", "cantidad": 60.0}, {"ingrediente": "mantequilla", "unidad": "g", "cantidad": 10.0}, {"ingrediente": "avellana europea molida", "unidad": "g", "cantidad": 50.0}]}, "Cheescake": {"codigo": "3004", "ingredientes": [{"ingrediente": "queso crema", "unidad": "kg", "cantidad": 0.75}, {"ingrediente": "crema", "unidad": "l", "cantidad": 0.165}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 0.2}, {"ingrediente": "huevos", "unidad": "un", "cantidad": 3.0}, {"ingrediente": "vainilla", "unidad": "l", "cantidad": 0.03}, {"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 0.2}, {"ingrediente": "mantequilla", "unidad": "g", "cantidad": 100.0}, {"ingrediente": "azucar_flor", "unidad": "kg", "cantidad": 0.07}, {"ingrediente": "yema de huevo", "unidad": "un", "cantidad": 1.0}]}, "Cheescake Pistacho": {"codigo": "3005", "ingredientes": [{"ingrediente": "queso crema", "unidad": "kg", "cantidad": 0.75}, {"ingrediente": "crema", "unidad": "l", "cantidad": 0.165}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 0.2}, {"ingrediente": "huevos", "unidad": "un", "cantidad": 3.0}, {"ingrediente": "vainilla", "unidad": "l", "cantidad": 0.03}, {"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 0.2}, {"ingrediente": "mantequilla", "unidad": "g", "cantidad": 100.0}, {"ingrediente": "azucar_flor", "unidad": "kg", "cantidad": 0.07}, {"ingrediente": "yema de huevo", "unidad": "un", "cantidad": 1.0}, {"ingrediente": "chocolate blanco", "unidad": "kg", "cantidad": 0.3}, {"ingrediente": "crema", "unidad": "l", "cantidad": 0.2}, {"ingrediente": "pasta de pistacho", "unidad": "g", "cantidad": 120.0}]}, "Cheescake Oreo": {"codigo": "3006", "ingredientes": [{"ingrediente": "queso crema", "unidad": "kg", "cantidad": 0.75}, {"ingrediente": "crema", "unidad": "l", "cantidad": 0.165}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 0.2}, {"ingrediente": "huevos", "unidad": "un", "cantidad": 3.0}, {"ingrediente": "vainilla", "unidad": "l", "cantidad": 0.03}, {"ingrediente": "galletas oreo molidas", "unidad": "g", "cantidad": 300.0}, {"ingrediente": "mantequilla", "unidad": "g", "cantidad": 120.0}, {"ingrediente": "galletas oreo", "unidad": "g", "cantidad": 260.0}, {"ingrediente": "chocolate blanco", "unidad": "kg", "cantidad": 0.15}, {"ingrediente": "crema de oreo", "unidad": "g", "cantidad": 0.1}]}, "Cheescake Maracuya": {"codigo": "3007", "ingredientes": [{"ingrediente": "queso crema", "unidad": "kg", "cantidad": 0.75}, {"ingrediente": "crema", "unidad": "l", "cantidad": 0.165}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 0.2}, {"ingrediente": "huevos", "unidad": "un", "cantidad": 3.0}, {"ingrediente": "vainilla", "unidad": "l", "cantidad": 0.03}, {"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 0.2}, {"ingrediente": "mantequilla", "unidad": "g", "cantidad": 100.0}, {"ingrediente": "azucar_flor", "unidad": "kg", "cantidad": 0.07}, {"ingrediente": "yema de huevo", "unidad": "un", "cantidad": 1.0}, {"ingrediente": "reduccion maracuya", "unidad": "kg", "cantidad": 1.0}]}, "Cheescake Berries": {"codigo": "3008", "ingredientes": [{"ingrediente": "queso crema", "unidad": "kg", "cantidad": 0.75}, {"ingrediente": "crema", "unidad": "l", "cantidad": 0.165}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 0.2}, {"ingrediente": "huevos", "unidad": "un", "cantidad": 3.0}, {"ingrediente": "vainilla", "unidad": "l", "cantidad": 0.03}, {"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 0.2}, {"ingrediente": "mantequilla", "unidad": "g", "cantidad": 100.0}, {"ingrediente": "azucar_flor", "unidad": "kg", "cantidad": 0.07}, {"ingrediente": "yema de huevo", "unidad": "un", "cantidad": 1.0}, {"ingrediente": "reduccion de berries", "unidad": "g", "cantidad": 250.0}]}, "Galleta zanahoria": {"codigo": "3009", "ingredientes": [{"ingrediente": "mantequilla", "unidad": "g", "cantidad": 261.0}, {"ingrediente": "azucar rubia", "unidad": "g", "cantidad": 229.0}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 0.103}, {"ingrediente": "huevos", "unidad": "un", "cantidad": 2.0}, {"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 0.539}, {"ingrediente": "sal", "unidad": "kg", "cantidad": 0.005}, {"ingrediente": "maicena", "unidad": "kg", "cantidad": 0.005}, {"ingrediente": "bicarbonato", "unidad": "kg", "cantidad": 0.005}, {"ingrediente": "canela", "unidad": "g", "cantidad": 0.12}, {"ingrediente": "nueces", "unidad": "kg", "cantidad": 0.1}, {"ingrediente": "clavo", "unidad": "g", "cantidad": 5.0}, {"ingrediente": "chips_chocolate_blanco", "unidad": "g", "cantidad": 200.0}, {"ingrediente": "zanahoria", "unidad": "kg", "cantidad": 0.12}]}, "Galletas Red velvet": {"codigo": "3010", "ingredientes": [{"ingrediente": "mantequilla", "unidad": "g", "cantidad": 238.0}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 0.272}, {"ingrediente": "huevos", "unidad": "un", "cantidad": 2.0}, {"ingrediente": "cacao amargo", "unidad": "g", "cantidad": 12.0}, {"ingrediente": "sal", "unidad": "kg", "cantidad": 0.004}, {"ingrediente": "maicena", "unidad": "kg", "cantidad": 0.004}, {"ingrediente": "polvo de hornear", "unidad": "g", "cantidad": 4.0}, {"ingrediente": "chips_chocolate_blanco", "unidad": "kg", "cantidad": 0.178}]}, "Galletas chips": {"codigo": "3011", "ingredientes": [{"ingrediente": "mantequilla", "unidad": "g", "cantidad": 261.0}, {"ingrediente": "azucar rubia", "unidad": "g", "cantidad": 229.0}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 103.0}, {"ingrediente": "huevos", "unidad": "g", "cantidad": 126.0}, {"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 0.539}, {"ingrediente": "sal", "unidad": "kg", "cantidad": 0.005}, {"ingrediente": "maicena", "unidad": "kg", "cantidad": 0.005}, {"ingrediente": "bicarbonato", "unidad": "kg", "cantidad": 0.005}, {"ingrediente": "chips_chocolate", "unidad": "kg", "cantidad": 0.37}]}, "Galletas Oreo": {"codigo": "3012", "ingredientes": [{"ingrediente": "mantequilla", "unidad": "g", "cantidad": 261.0}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 0.332}, {"ingrediente": "huevos", "unidad": "g", "cantidad": 726.0}, {"ingrediente": "sal", "unidad": "kg", "cantidad": 0.004}, {"ingrediente": "bicarbonato", "unidad": "kg", "cantidad": 0.005}, {"ingrediente": "galletas oreo", "unidad": "g", "cantidad": 190.0}, {"ingrediente": "chips_chocolate", "unidad": "g", "cantidad": 200.0}, {"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 0.54}]}, "Galletas Café": {"codigo": "3013", "ingredientes": [{"ingrediente": "mantequilla", "unidad": "g", "cantidad": 200.0}, {"ingrediente": "azucar_flor", "unidad": "kg", "cantidad": 0.12}, {"ingrediente": "huevos", "unidad": "un", "cantidad": 1.0}, {"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 0.3}, {"ingrediente": "maicena", "unidad": "kg", "cantidad": 0.03}, {"ingrediente": "sal", "unidad": "kg", "cantidad": 0.005}, {"ingrediente": "vainilla", "unidad": "l", "cantidad": 0.015}, {"ingrediente": "zeste de limon", "unidad": "g", "cantidad": 5.0}]}, "Rollito canela": {"codigo": "3014", "ingredientes": [{"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 132.0}, {"ingrediente": "levadura", "unidad": "g", "cantidad": 24.0}, {"ingrediente": "agua", "unidad": "l", "cantidad": 664.0}, {"ingrediente": "leche", "unidad": "l", "cantidad": 800.0}, {"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 2.532}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 264.0}, {"ingrediente": "sal", "unidad": "g", "cantidad": 20.0}, {"ingrediente": "leche en polvo", "unidad": "g", "cantidad": 52.0}, {"ingrediente": "huevos", "unidad": "un", "cantidad": 4.0}, {"ingrediente": "mantequilla", "unidad": "g", "cantidad": 264.0}, {"ingrediente": "canela", "unidad": "g", "cantidad": 0.025}, {"ingrediente": "mantequilla", "unidad": "g", "cantidad": 200.0}, {"ingrediente": "azucar rubia", "unidad": "g", "cantidad": 80.0}]}, "Rollito pistacho": {"codigo": "3015", "ingredientes": [{"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 132.0}, {"ingrediente": "levadura", "unidad": "g", "cantidad": 24.0}, {"ingrediente": "agua", "unidad": "l", "cantidad": 664.0}, {"ingrediente": "leche", "unidad": "l", "cantidad": 800.0}, {"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 2.532}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 264.0}, {"ingrediente": "sal", "unidad": "g", "cantidad": 20.0}, {"ingrediente": "leche en polvo", "unidad": "g", "cantidad": 52.0}, {"ingrediente": "huevos", "unidad": "un", "cantidad": 4.0}, {"ingrediente": "mantequilla", "unidad": "g", "cantidad": 264.0}, {"ingrediente": "pasta de pistacho", "unidad": "g", "cantidad": 150.0}, {"ingrediente": "chocolate blanco", "unidad": "kg", "cantidad": 0.1}, {"ingrediente": "azucar rubia", "unidad": "g", "cantidad": 80.0}, {"ingrediente": "mantequilla", "unidad": "g", "cantidad": 80.0}]}, "Rollito Berries": {"codigo": "3016", "ingredientes": [{"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 132.0}, {"ingrediente": "levadura", "unidad": "g", "cantidad": 24.0}, {"ingrediente": "agua", "unidad": "l", "cantidad": 664.0}, {"ingrediente": "leche", "unidad": "l", "cantidad": 800.0}, {"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 2.532}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 264.0}, {"ingrediente": "sal", "unidad": "g", "cantidad": 20.0}, {"ingrediente": "leche en polvo", "unidad": "g", "cantidad": 52.0}, {"ingrediente": "huevos", "unidad": "un", "cantidad": 4.0}, {"ingrediente": "mantequilla", "unidad": "g", "cantidad": 264.0}, {"ingrediente": "reduccion berries", "unidad": "g", "cantidad": 300.0}, {"ingrediente": "pastelera", "unidad": "g", "cantidad": 100.0}]}, "Rollito Ferrero": {"codigo": "3017", "ingredientes": [{"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 132.0}, {"ingrediente": "levadura", "unidad": "g", "cantidad": 24.0}, {"ingrediente": "agua", "unidad": "l", "cantidad": 664.0}, {"ingrediente": "leche", "unidad": "l", "cantidad": 800.0}, {"ingrediente": "harina panificacion", "unidad": "kg", "cantidad": 2.532}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 264.0}, {"ingrediente": "sal", "unidad": "g", "cantidad": 20.0}, {"ingrediente": "leche en polvo", "unidad": "g", "cantidad": 52.0}, {"ingrediente": "huevos", "unidad": "un", "cantidad": 4.0}, {"ingrediente": "mantequilla", "unidad": "g", "cantidad": 264.0}, {"ingrediente": "avellana europea", "unidad": "kg", "cantidad": 200.0}, {"ingrediente": "chocolate leche", "unidad": "kg", "cantidad": 100.0}, {"ingrediente": "azucar rubia", "unidad": "g", "cantidad": 80.0}, {"ingrediente": "mantequilla", "unidad": "g", "cantidad": 80.0}]}, "Reduccion berries": {"codigo": "3018", "ingredientes": [{"ingrediente": "mix berries", "unidad": "kg", "cantidad": 1.0}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 0.24}]}, "Reduccion maracuya": {"codigo": "3019", "ingredientes": [{"ingrediente": "pulpa maracuya", "unidad": "kg", "cantidad": 1.0}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 0.24}]}, "Pastelera": {"codigo": "3020", "ingredientes": [{"ingrediente": "leche", "unidad": "l", "cantidad": 1.5}, {"ingrediente": "yema de huevo", "unidad": "un", "cantidad": 9.0}, {"ingrediente": "maicena", "unidad": "kg", "cantidad": 0.12}, {"ingrediente": "azucar", "unidad": "kg", "cantidad": 0.3}]}};
-
-  const ING_MAP = {"chocolate leche":"chocolate_leche_callebaut_545","mantequilla":"mantequilla_sin_sal","azucar":"azucar_flor","azucar rubia":"azucar_rubia_iansa","harina panificacion":"harina_panificacion_super_yanine","cacao amargo":"cacao_amargo_en_polvo","chocolate blanco":"chocolate_blanco_callebaut_28","crema":"crema_uht_surlat","vainilla":"esencia_de_vainilla","galletas oreo molidas":"galleta_oreo_molida","galletas oreo":"galleta_oreo_paquete_108_gr","galletas oreo ":"galleta_oreo_paquete_108_gr","galleta oreo":"galleta_oreo_paquete_108_gr","bicarbonato":"bicarbonato_de_sodio","canela":"canela_molida","clavo":"clavo_de_olor_entero","chips_chocolate_blanco":"chips_chocolate_blanco","chips_chocolate":"chips_chocolate","chips chocolate ":"chips_chocolate","polvo de hornear":"polvos_de_hornear","leche":"leche_semi_desc_lonco_leche","mix berries":"mix_berries_congelado","mix berries ":"mix_berries_congelado","pulpa maracuya":"pulpa_de_maracuya_guallarauco","miel":"miel_de_abejas","leche condensada":"leche_condensada_nestle_bolsa","azucar_flor":"azucar_flor","huevos":"huevos","huevos ":"huevos","levadura":"levadura","chips chocolate blanco ":"chips_chocolate_blanco"};
-
-  const DEFAULT_INGREDIENTES = {"esencia_de_vainilla":{"nombre":"ESENCIA DE VAINILLA","formato_compra":"LITRO","categoria":"Esencias","precio_neto":1207},"mantequilla_sin_sal":{"nombre":"MANTEQUILLA SIN SAL","formato_compra":"250 GRS","categoria":"Lacteos","precio_neto":2837},"azucar_rubia_iansa":{"nombre":"AZUCAR RUBIA IANSA","formato_compra":"500 GRS","categoria":"Azúcares","precio_neto":1122},"bicarbonato_de_sodio":{"nombre":"BICARBONATO DE SODIO","formato_compra":"KG","categoria":"Leudantes","precio_neto":1781},"canela_molida":{"nombre":"CANELA MOLIDA","formato_compra":"250 GRS","categoria":"Esencias","precio_neto":3906},"polvos_de_hornear":{"nombre":"POLVOS DE HORNEAR","formato_compra":"500 GRS","categoria":"Leudantes","precio_neto":1384},"chocolate_leche_callebaut_545":{"nombre":"CHOCOLATE LECHE CALLEBAUT 54.5 %","formato_compra":"KG","categoria":"Chocolates","precio_neto":19442},"chocolate_blanco_callebaut_28":{"nombre":"CHOCOLATE BLANCO CALLEBAUT 28%","formato_compra":"KG","categoria":"Chocolates","precio_neto":25300},"clavo_de_olor_entero":{"nombre":"CLAVO DE OLOR ENTERO","formato_compra":"4 GRS","categoria":"Esencias","precio_neto":432},"pulpa_de_maracuya_guallarauco":{"nombre":"PULPA DE MARACUYA CON PEPA GUALLARAUCO","formato_compra":"KG","categoria":"Pulpas","precio_neto":6544},"crema_uht_surlat":{"nombre":"CREMA UHT SURLAT","formato_compra":"LITRO","categoria":"Lacteos","precio_neto":4096},"azucar_flor":{"nombre":"AZUCAR FLOR","formato_compra":"KG","categoria":"Azúcares","precio_neto":1522},"mix_berries_congelado":{"nombre":"MIX BERRIES CONGELADO","formato_compra":"KG","categoria":"Pulpas","precio_neto":6227},"colapez_en_hoja":{"nombre":"COLAPEZ EN HOJA","formato_compra":"KG","categoria":"Espesantes","precio_neto":46469},"leche_semi_desc_lonco_leche":{"nombre":"LECHE SEMI DESC. LONCO LECHE","formato_compra":"LITRO","categoria":"Lacteos","precio_neto":990},"galleta_oreo_paquete_108_gr":{"nombre":"GALLETA OREO PAQUETE 108 GR","formato_compra":"GR","categoria":"Confites","precio_neto":614},"galleta_oreo_molida":{"nombre":"GALLETA OREO MOLIDA","formato_compra":"4 KG","categoria":"Confites","precio_neto":21869},"cacao_amargo_en_polvo":{"nombre":"CACAO AMARGO EN POLVO","formato_compra":"KG","categoria":"Chocolates","precio_neto":9317},"harina_panificacion_super_yanine":{"nombre":"HARINA PANIFICACION SUPER YANINE","formato_compra":"25 KG","categoria":"Harinas","precio_neto":18554},"leche_condensada_nestle_bolsa":{"nombre":"LECHE CONDENSADA NESTLE BOLSA","formato_compra":"6 KG","categoria":"Lacteos","precio_neto":23508},"miel_de_abejas":{"nombre":"MIEL DE ABEJAS","formato_compra":"KG","categoria":"Azúcares","precio_neto":4042},"huevos":{"nombre":"HUEVOS","formato_compra":"DOC","categoria":"Proteínas","precio_neto":0},"levadura":{"nombre":"LEVADURA","formato_compra":"KG","categoria":"Leudantes","precio_neto":0},"chips_chocolate_blanco":{"nombre":"CHIPS CHOCOLATE BLANCO","formato_compra":"KG","categoria":"Chocolates","precio_neto":0},"chips_chocolate":{"nombre":"CHIPS CHOCOLATE","formato_compra":"KG","categoria":"Chocolates","precio_neto":0}};
-
-  // ════════════════════════════════════════════════
-  // STATE (se sincroniza con Firebase)
-  // ════════════════════════════════════════════════
-  let STATE = {
-    ingredientes: { ...DEFAULT_INGREDIENTES },
-    cif: [],
-    packaging: [],
-    mod: [],
-    modProd: {},
-    porciones: {},
-    customRecipes: {}  // { "Nombre": { codigo, ingredientes: [{ingrediente, unidad, cantidad}] } }
-  };
-
-  let dbLoaded = false;
-
-  // ════════════════════════════════════════════════
-  // FIREBASE SYNC
-  // ════════════════════════════════════════════════
-  function initFirebase() {
-    if (!IS_CONFIGURED) {
-      document.getElementById('syncBadge').innerHTML = '⚠️ Sin Firebase — Modo local';
-      document.getElementById('syncBadge').style.background = '#F59E0B';
-      // Fallback: localStorage
-      try {
-        const saved = localStorage.getItem('pasteleriacosteo_v2');
-        if (saved) STATE = { ...STATE, ...JSON.parse(saved) };
-      } catch(e) {}
-      dbLoaded = true;
-      afterLoad();
-      return;
-    }
-
-    setSyncStatus('connecting');
-
-    // Listen to ALL state changes in real time
-    onValue(fbRef('state'), (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        STATE = {
-          ingredientes: data.ingredientes || { ...DEFAULT_INGREDIENTES },
-          cif: data.cif ? Object.values(data.cif) : [],
-          packaging: data.packaging ? Object.values(data.packaging) : [],
-          mod: data.mod ? Object.values(data.mod) : [],
-          modProd: data.modProd || {},
-          porciones: data.porciones || {},
-          customRecipes: data.customRecipes || {}
-        };
-        // Store Firebase keys for deletion
-        STATE._cifKeys = data.cif ? Object.keys(data.cif) : [];
-        STATE._pkgKeys = data.packaging ? Object.keys(data.packaging) : [];
-        STATE._modKeys = data.mod ? Object.keys(data.mod) : [];
-      } else {
-        // First time: upload defaults
-        pushDefaults();
-      }
-
-      setSyncStatus('synced');
-
-      if (!dbLoaded) {
-        dbLoaded = true;
-        afterLoad();
-      } else {
-        // Re-render current tab
-        rerenderCurrentTab();
-      }
-    }, (error) => {
-      setSyncStatus('error');
-      console.error('Firebase error:', error);
-    });
-  }
-
-  function pushDefaults() {
-    set(fbRef('state/ingredientes'), DEFAULT_INGREDIENTES);
-  }
-
-  function setSyncStatus(status) {
-    const badge = document.getElementById('syncBadge');
-    const dot = document.getElementById('syncDot');
-    if (status === 'connecting') {
-      badge.innerHTML = '<span id="syncDot" class="sync-dot connecting"></span> Conectando...';
-    } else if (status === 'synced') {
-      badge.innerHTML = '<span id="syncDot" class="sync-dot synced"></span> Sincronizado ' + new Date().toLocaleTimeString('es-CL');
-    } else if (status === 'saving') {
-      badge.innerHTML = '<span id="syncDot" class="sync-dot saving"></span> Guardando...';
-    } else if (status === 'error') {
-      badge.innerHTML = '<span id="syncDot" class="sync-dot error"></span> Error de conexión';
-    }
-  }
-
-  // ════════════════════════════════════════════════
-  // SAVE HELPERS
-  // ════════════════════════════════════════════════
-  function saveIngredientes() {
-    setSyncStatus('saving');
-    if (IS_CONFIGURED) {
-      set(fbRef('state/ingredientes'), STATE.ingredientes);
-    } else {
-      localStorage.setItem('pasteleriacosteo_v2', JSON.stringify(STATE));
-      setSyncStatus('synced');
-    }
-  }
-
-  function saveModProd() {
-    setSyncStatus('saving');
-    if (IS_CONFIGURED) {
-      set(fbRef('state/modProd'), STATE.modProd);
-    } else {
-      localStorage.setItem('pasteleriacosteo_v2', JSON.stringify(STATE));
-      setSyncStatus('synced');
-    }
-  }
-
-  function savePorciones() {
-    setSyncStatus('saving');
-    if (IS_CONFIGURED) {
-      set(fbRef('state/porciones'), STATE.porciones);
-    } else {
-      localStorage.setItem('pasteleriacosteo_v2', JSON.stringify(STATE));
-      setSyncStatus('synced');
-    }
-  }
-
-  function saveCustomRecipes() {
-    setSyncStatus('saving');
-    if (IS_CONFIGURED) {
-      set(fbRef('state/customRecipes'), STATE.customRecipes || {});
-    } else {
-      localStorage.setItem('pasteleriacosteo_v2', JSON.stringify(STATE));
-      setSyncStatus('synced');
-    }
-  }
-
-  // Merge Excel recipes + custom recipes (custom overrides if same name)
-  function getAllRecipes() {
-    return { ...RECIPES, ...(STATE.customRecipes || {}) };
-  }
-
-  function addToList(listName, item) {
-    setSyncStatus('saving');
-    if (IS_CONFIGURED) {
-      push(fbRef('state/' + listName), item);
-    } else {
-      if (!STATE[listName]) STATE[listName] = [];
-      STATE[listName].push(item);
-      localStorage.setItem('pasteleriacosteo_v2', JSON.stringify(STATE));
-      setSyncStatus('synced');
-      rerenderCurrentTab();
-    }
-  }
-
-  function deleteFromList(listName, keysArrayName, index) {
-    setSyncStatus('saving');
-    if (IS_CONFIGURED) {
-      const keys = STATE[keysArrayName];
-      if (keys && keys[index]) {
-        remove(fbRef('state/' + listName + '/' + keys[index]));
-      }
-    } else {
-      STATE[listName].splice(index, 1);
-      localStorage.setItem('pasteleriacosteo_v2', JSON.stringify(STATE));
-      setSyncStatus('synced');
-      rerenderCurrentTab();
-    }
-  }
-
-  // ════════════════════════════════════════════════
-  // COST ENGINE
-  // ════════════════════════════════════════════════
-  function toKg(cantidad, unidad) {
-    const u = (unidad||'').toLowerCase().trim();
-    if (u==='g') return cantidad/1000;
-    if (u==='kg') return cantidad;
-    if (u==='l') return cantidad;
-    if (u==='ml') return cantidad/1000;
-    return cantidad;
-  }
-
-  function getPrecioKg(ingKey) {
-    const ing = STATE.ingredientes[ingKey];
-    if (!ing || !ing.precio_neto || ing.precio_neto===0) return null;
-    const fmt = (ing.formato_compra||'').toUpperCase().trim();
-    let qty=1, unit='KG';
-    const match = fmt.match(/^([\d.]+)\s*([A-Z]+)?/);
-    if (match) { qty=parseFloat(match[1])||1; unit=(match[2]||'KG').toUpperCase(); }
-    else { unit=fmt||'KG'; }
-    let pxKg = ing.precio_neto;
-    if (unit==='GRS'||unit==='GR'||unit==='G') pxKg=(ing.precio_neto/qty)*1000;
-    else if (unit==='KG') pxKg=ing.precio_neto/qty;
-    else if (unit==='LITRO'||unit==='L'||unit==='LT') pxKg=ing.precio_neto/qty;
-    else if (unit==='ML') pxKg=(ing.precio_neto/qty)*1000;
-    else pxKg=ing.precio_neto/qty;
-    return pxKg;
-  }
-
-  function calcMPCost(productName) {
-    const allR=getAllRecipes();
-    const recipe=allR[productName]; if(!recipe) return {total:0,breakdown:[]};
-    const agg={};
-    for(const ing of recipe.ingredientes){
-      const key=ing.ingrediente.trim().toLowerCase();
-      if(!agg[key]) agg[key]={cantidad:0,unidad:ing.unidad};
-      agg[key].cantidad+=ing.cantidad;
-    }
-    let total=0; const breakdown=[];
-    for(const[rawKey,data] of Object.entries(agg)){
-      const mappedKey=ING_MAP[rawKey]||rawKey;
-      const pxKg=getPrecioKg(mappedKey);
-      const cantKg=toKg(data.cantidad,data.unidad);
-      let costo=0,hasPrice=false;
-      if(pxKg!==null){costo=cantKg*pxKg;hasPrice=true;}
-      total+=costo;
-      breakdown.push({rawKey,mappedKey,cantidad:data.cantidad,unidad:data.unidad,pxKg,costo,hasPrice});
-    }
-    return{total,breakdown};
-  }
-
-  function calcCIF() {
-    const totalCIF=(STATE.cif||[]).reduce((s,c)=>s+(parseFloat(c.monto)||0),0);
-    return totalCIF/Math.max(Object.keys(getAllRecipes()).length,1);
-  }
-
-  function calcMOD(productName) {
-    const hours=(STATE.modProd&&STATE.modProd[productName])?parseFloat(STATE.modProd[productName])||0:0;
-    const totalMOD=(STATE.mod||[]).reduce((s,m)=>s+(parseFloat(m.monto)||0),0);
-    const totalHoras=(STATE.mod||[]).reduce((s,m)=>s+(parseFloat(m.horas)||160),0);
-    const costHora=totalHoras>0?totalMOD/totalHoras:0;
-    return hours*costHora;
-  }
-
-  function calcPKG(productName) {
-    return (STATE.packaging||[]).filter(p=>p.producto==='todos'||p.producto===productName)
-      .reduce((s,p)=>s+(parseFloat(p.precio)||0)*(parseFloat(p.cantidad)||1),0);
-  }
-
-  function totalCost(productName) {
-    const mp=calcMPCost(productName).total;
-    const cif=calcCIF();
-    const mod=calcMOD(productName);
-    const pkg=calcPKG(productName);
-    return{mp,cif,mod,pkg,total:mp+cif+mod+pkg};
-  }
-
-  // ════════════════════════════════════════════════
-  // FORMAT
-  // ════════════════════════════════════════════════
-  const $f=(n)=>Math.round(n).toLocaleString('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0});
-
-  // ════════════════════════════════════════════════
-  // TABS
-  // ════════════════════════════════════════════════
-  let currentTab = 'dashboard';
-  // showTab is defined in the Recetas section below (needs renderRecetasTab)
-
-  function rerenderCurrentTab() {
-    if(currentTab==='dashboard') renderDashboard();
-    if(currentTab==='ingredientes') renderIngTable();
-    if(currentTab==='cif') renderCIF();
-    if(currentTab==='packaging') renderPKG();
-    if(currentTab==='mod') renderMOD();
-    if(currentTab==='detalle') renderDetalle();
-    if(currentTab==='recetas') renderRecetasTab();
-  }
-
-  function afterLoad() {
-    document.getElementById('loadingScreen').style.display='none';
-    document.getElementById('appShell').style.display='block';
-    populateAllSelects();
-    renderDashboard();
-  }
-
-  // ════════════════════════════════════════════════
-  // PORCIONES HELPERS
-  // ════════════════════════════════════════════════
-  function getPorciones(prod) {
-    return (STATE.porciones && STATE.porciones[prod]) ? parseInt(STATE.porciones[prod]) : 0;
-  }
-
-  window.updatePorcion = function(prod, val) {
-    if (!STATE.porciones) STATE.porciones = {};
-    STATE.porciones[prod] = parseInt(val) || 0;
-    savePorciones();
-  };
-
-  // ════════════════════════════════════════════════
-  // DASHBOARD
-  // ════════════════════════════════════════════════
-  let dashFilter = '';
-  window.filterDashboard = (v) => { dashFilter=v.toLowerCase(); renderDashboard(); };
-
-  function renderDashboard() {
-    const allR=getAllRecipes();
-    const prods=Object.keys(allR);
-    const avgCost=prods.reduce((s,p)=>s+totalCost(p).total,0)/prods.length;
-    const sortedByMax=[...prods].sort((a,b)=>totalCost(b).total-totalCost(a).total);
-    const totalCIF=(STATE.cif||[]).reduce((s,c)=>s+(parseFloat(c.monto)||0),0);
-    document.getElementById('kpiRow').innerHTML=`
-      <div class="kpi rose"><div class="kpi-val">${prods.length}</div><div class="kpi-label">Productos activos</div></div>
-      <div class="kpi gold"><div class="kpi-val">${$f(avgCost)}</div><div class="kpi-label">Costo promedio</div></div>
-      <div class="kpi sage"><div class="kpi-val">${$f(totalCost(sortedByMax[0]).total)}</div><div class="kpi-label">Mayor: ${sortedByMax[0]}</div></div>
-      <div class="kpi cocoa"><div class="kpi-val">${$f(totalCIF)}</div><div class="kpi-label">CIF mensual</div></div>
-    `;
-    const sort=document.getElementById('sortDash').value;
-    let filtered=prods.filter(p=>p.toLowerCase().includes(dashFilter));
-    if(sort==='costo_asc') filtered.sort((a,b)=>totalCost(a).total-totalCost(b).total);
-    else if(sort==='costo_desc') filtered.sort((a,b)=>totalCost(b).total-totalCost(a).total);
-    else filtered.sort();
-    const isCustom=(p)=>!!(STATE.customRecipes && STATE.customRecipes[p]);
-    document.getElementById('productsGrid').innerHTML=filtered.map(p=>{
-      const c=totalCost(p);
-      const {breakdown}=calcMPCost(p);
-      const noPrice=breakdown.filter(b=>!b.hasPrice).length;
-      const porc=getPorciones(p);
-      const costXPorc = porc > 0 ? c.total / porc : null;
-      const custom=isCustom(p);
-      return`<div class="product-card" onclick="goDetail('${p}')">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
-          <div class="product-card-code">Cód. ${allR[p].codigo}</div>
-          ${custom?`<span class="custom-badge">✏️ Personalizada</span>`:''}
-        </div>
-        <div class="product-card-name">${p}</div>
-        ${noPrice?`<div style="margin-bottom:8px"><span class="unmapped-badge">⚠ ${noPrice} sin precio</span></div>`:''}
-        <div class="cost-row"><span class="cost-label"><span class="badge-mp">MP</span></span><span class="cost-val">${$f(c.mp)}</span></div>
-        <div class="cost-row"><span class="cost-label"><span class="badge-cif">CIF</span></span><span class="cost-val">${$f(c.cif)}</span></div>
-        <div class="cost-row"><span class="cost-label"><span class="badge-mod">MOD</span></span><span class="cost-val">${$f(c.mod)}</span></div>
-        <div class="cost-row"><span class="cost-label"><span class="badge-env">Packaging</span></span><span class="cost-val">${$f(c.pkg)}</span></div>
-        <div class="total-cost"><span>Costo Receta</span><span class="val">${$f(c.total)}</span></div>
-        <div class="porcion-row">
-          <div class="porcion-label">
-            <span>🍰 Porciones:</span>
-            <input type="number" class="porcion-input" value="${porc||''}" min="1" placeholder="—"
-              onclick="event.stopPropagation()"
-              onchange="event.stopPropagation(); updatePorcion('${p}', this.value); renderDashboard()">
-          </div>
-          <span class="porcion-cost">${costXPorc !== null ? $f(costXPorc)+' /u' : '<span style=\'color:var(--text-light);font-size:11px\'>Ingresa porciones</span>'}</span>
-        </div>
-        <div style="margin-top:8px;display:flex;gap:6px">
-          <button class="btn btn-sm" style="flex:1;background:#FEF3C7;color:#92400E;border:1px solid #F59E0B" onclick="event.stopPropagation();editRecipe('${p}')">✏️ Editar receta</button>
-          ${custom?`<button class="btn btn-sm btn-delete" onclick="event.stopPropagation();deleteRecipe('${p}')">🗑</button>`:''}
-        </div>
-      </div>`;
-    }).join('');
-  }
-
-  window.goDetail = function(prod) {
-    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-    document.querySelectorAll('.nav-tab')[1].classList.add('active');
-    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-    document.getElementById('tab-detalle').classList.add('active');
-    currentTab='detalle';
-    renderDetalleSelects();
-    document.getElementById('detalleSelect').value=prod;
-    renderDetalle();
-  };
-
-  // ════════════════════════════════════════════════
-  // DETALLE
-  // ════════════════════════════════════════════════
-  function populateAllSelects() {
-    renderDetalleSelects();
-    renderCalcSelects();
-    const pkgSel=document.getElementById('newPkgProd');
-    pkgSel.innerHTML='<option value="todos">Todos los productos</option>'+Object.keys(getAllRecipes()).sort().map(p=>`<option value="${p}">${p}</option>`).join('');
-  }
-
-  function renderDetalleSelects() {
-    const sel=document.getElementById('detalleSelect');
-    const cur=sel.value;
-    sel.innerHTML='<option value="">— Seleccionar producto —</option>'+Object.keys(getAllRecipes()).sort().map(p=>`<option value="${p}"${p===cur?' selected':''}>${p}</option>`).join('');
-  }
-
-  function renderCalcSelects() {
-    document.getElementById('calcProd').innerHTML=Object.keys(getAllRecipes()).sort().map(p=>`<option value="${p}">${p}</option>`).join('');
-  }
-
-  window.renderDetalle = function() {
-    const prod=document.getElementById('detalleSelect').value;
-    const container=document.getElementById('detalleContent');
-    if(!prod){container.innerHTML='';return;}
-    const allR=getAllRecipes();
-    const c=totalCost(prod);
-    const{breakdown}=calcMPCost(prod);
-    const porc=getPorciones(prod);
-    const costXPorc=porc>0?c.total/porc:null;
-    const isCustom=!!(STATE.customRecipes && STATE.customRecipes[prod]);
-    container.innerHTML=`
-      <div class="card">
-        <div class="detail-header">
-          <div>
-            <div style="display:flex;align-items:center;gap:10px">
-              <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:700;color:var(--cocoa)">${prod}</div>
-              ${isCustom?`<span class="custom-badge">✏️ Personalizada</span>`:''}
-            </div>
-            <div style="font-size:12px;color:var(--text-light);margin-top:2px">Código: ${allR[prod].codigo} ${isCustom?'· <a href="#" onclick="showTab(\'recetas\',document.querySelectorAll(\'.nav-tab\')[7]);editRecipe(\''+prod+'\');return false" style="color:var(--rose)">Editar receta</a>':''}</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;background:var(--cream);padding:12px 18px;border-radius:10px;border:1px solid var(--border)">
-            <div style="font-size:12px;color:var(--text-light);font-weight:500">🍰 Porciones por receta</div>
-            <input type="number" min="1" value="${porc||''}" placeholder="Ej: 12"
-              style="width:80px;text-align:center;font-size:16px;font-weight:700;border:2px solid var(--gold);border-radius:8px"
-              onchange="updatePorcion('${prod}',this.value); renderDetalle()">
-            ${costXPorc!==null?`<div style="font-size:13px;color:var(--cocoa);font-weight:600">= <span style="font-family:'Cormorant Garamond',serif;font-size:20px">${$f(costXPorc)}</span> / porción</div>`:''}
-          </div>
-        </div>
-        <div class="detail-cost-summary">
-          <div class="dcs-box mp"><div class="dcs-label">Materia Prima</div><div class="dcs-val">${$f(c.mp)}</div>${porc>0?`<div style="font-size:11px;margin-top:4px;opacity:0.7">${$f(c.mp/porc)}/u</div>`:''}</div>
-          <div class="dcs-box cif"><div class="dcs-label">CIF</div><div class="dcs-val">${$f(c.cif)}</div>${porc>0?`<div style="font-size:11px;margin-top:4px;opacity:0.7">${$f(c.cif/porc)}/u</div>`:''}</div>
-          <div class="dcs-box mod"><div class="dcs-label">MOD</div><div class="dcs-val">${$f(c.mod)}</div>${porc>0?`<div style="font-size:11px;margin-top:4px;opacity:0.7">${$f(c.mod/porc)}/u</div>`:''}</div>
-          <div class="dcs-box env"><div class="dcs-label">Packaging</div><div class="dcs-val">${$f(c.pkg)}</div>${porc>0?`<div style="font-size:11px;margin-top:4px;opacity:0.7">${$f(c.pkg/porc)}/u</div>`:''}</div>
-          <div class="dcs-box total"><div class="dcs-label">COSTO RECETA</div><div class="dcs-val">${$f(c.total)}</div>${porc>0?`<div style="font-size:12px;margin-top:6px;color:var(--gold-light);font-weight:600">${$f(costXPorc)} / porción</div>`:''}</div>
-        </div>
-        <div style="font-weight:600;margin-bottom:12px;color:var(--cocoa)">Desglose Materia Prima</div>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>Ingrediente</th><th>Cantidad</th><th>Unidad</th><th>Precio/Kg</th><th>Costo</th>${porc>0?'<th>Costo/porción</th>':''}<th>Estado</th></tr></thead>
-          <tbody>${breakdown.map(b=>`<tr>
-            <td style="text-transform:capitalize">${b.rawKey}</td>
-            <td>${b.cantidad}</td><td>${b.unidad}</td>
-            <td class="${b.hasPrice?'':'no-price'}">${b.hasPrice?$f(b.pxKg)+'/kg':'Sin precio'}</td>
-            <td>${b.hasPrice?$f(b.costo):'<span class="no-price">—</span>'}</td>
-            ${porc>0?`<td class="muted">${b.hasPrice?$f(b.costo/porc):'—'}</td>`:''}
-            <td>${b.hasPrice?'✅':'<span class="unmapped-badge">Sin precio</span>'}</td>
-          </tr>`).join('')}</tbody>
-        </table></div>
-        ${(STATE.packaging||[]).filter(p=>p.producto==='todos'||p.producto===prod).length>0?`
-        <hr class="divider">
-        <div style="font-weight:600;margin-bottom:12px;color:var(--cocoa)">Packaging</div>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>Envase</th><th>P.unit.</th><th>Cantidad</th><th>Costo</th>${porc>0?'<th>Costo/porción</th>':''}</tr></thead>
-          <tbody>${(STATE.packaging||[]).filter(p=>p.producto==='todos'||p.producto===prod).map(p=>`<tr>
-            <td>${p.nombre}</td><td>${$f(p.precio)}</td><td>${p.cantidad}</td>
-            <td>${$f((p.precio||0)*(p.cantidad||1))}</td>
-            ${porc>0?`<td class="muted">${$f(((p.precio||0)*(p.cantidad||1))/porc)}</td>`:''}
-          </tr>`).join('')}</tbody>
-        </table></div>`:''}
-      </div>`;
-  };
-
-  // ════════════════════════════════════════════════
-  // FORMATO NÚMERO CHILENO
-  // Punto como separador de miles, coma para decimales
-  // ════════════════════════════════════════════════
-  function parseCLP(str) {
-    // Acepta tanto "1.500,50" como "1500.50" — convierte a número
-    if (typeof str === 'number') return str;
-    const s = String(str).trim();
-    // Si tiene coma como decimal (formato CL): quitar puntos de miles, reemplazar coma por punto
-    if (s.match(/\d+\.\d{3}/) || s.includes(',')) {
-      return parseFloat(s.replace(/\./g,'').replace(',','.')) || 0;
-    }
-    return parseFloat(s) || 0;
-  }
-
-  // ════════════════════════════════════════════════
-  // INGREDIENTES
-  // ════════════════════════════════════════════════
-  window.ingPending = {};
-
-  function renderIngTable() {
-    const rows=Object.entries(STATE.ingredientes).sort((a,b)=>a[0].localeCompare(b[0]));
-    document.getElementById('ingTable').innerHTML=rows.map(([key,ing])=>{
-      const pxKg=getPrecioKg(key);
-      const noPrice=!ing.precio_neto||ing.precio_neto===0;
-      return`<tr>
-        <td>
-          <input type="text" value="${ing.nombre||''}" style="font-weight:600;${noPrice?'color:var(--danger)':''}" 
-            onchange="stagePending('${key}','nombre',this.value.toUpperCase())">
-          <div style="font-size:10px;color:var(--text-light);margin-top:2px">${key}</div>
-        </td>
-        <td><input type="text" value="${ing.categoria||''}" style="max-width:130px" onchange="stagePending('${key}','categoria',this.value)"></td>
-        <td><input type="text" value="${ing.formato_compra||''}" style="max-width:120px" placeholder="KG, 500 GRS..." onchange="stagePending('${key}','formato_compra',this.value)"></td>
-        <td><input type="text" inputmode="decimal" value="${(ing.precio_neto||0).toLocaleString('es-CL')}" style="max-width:110px" 
-            placeholder="0" onchange="stagePending('${key}','precio_neto',parseCLP(this.value))"></td>
-        <td class="muted">${pxKg!==null?$f(pxKg)+'/kg':'<span class="no-price">Sin datos</span>'}</td>
-        <td style="white-space:nowrap;display:flex;gap:6px;align-items:center">
-          <button class="btn btn-sm btn-save" onclick="saveIngRow('${key}')">💾 Guardar</button>
-          <button class="btn btn-sm btn-delete" onclick="deleteIngrediente('${key}')" title="Eliminar">🗑</button>
-        </td>
-      </tr>`;
-    }).join('');
-  }
-
-  window.stagePending = function(key, field, val) {
-    if(!window.ingPending[key]) window.ingPending[key]={};
-    window.ingPending[key][field]=val;
-  };
-
-  window.saveIngRow = function(key) {
-    if(window.ingPending[key]) {
-      STATE.ingredientes[key]={...STATE.ingredientes[key],...window.ingPending[key]};
-      delete window.ingPending[key];
-    }
-    saveIngredientes();
-    showToast('✅ Ingrediente guardado y sincronizado');
-    renderIngTable();
-    renderDashboard();
-  };
-
-  window.deleteIngrediente = function(key) {
-    const nombre = STATE.ingredientes[key] ? STATE.ingredientes[key].nombre : key;
-    if (!confirm(`¿Eliminar el ingrediente "${nombre}"?\n\nSi alguna receta lo usa, aparecerá como "Sin precio".`)) return;
-    delete STATE.ingredientes[key];
-    saveIngredientes();
-    renderIngTable();
-    renderDashboard();
-    showToast(`🗑 Ingrediente "${nombre}" eliminado`);
-  };
-
-  window.addIngrediente = function() {
-    const nombre=document.getElementById('newIngName').value.trim();
-    if(!nombre){alert('Ingresa un nombre');return;}
-    const key=nombre.toLowerCase().replace(/\s+/g,' ');
-    STATE.ingredientes[key]={
-      nombre:nombre.toUpperCase(),
-      categoria:document.getElementById('newIngCat').value,
-      formato_compra:document.getElementById('newIngFmt').value,
-      precio_neto:parseFloat(document.getElementById('newIngPrecio').value)||0
-    };
-    saveIngredientes();
-    renderIngTable();
-    ['newIngName','newIngCat','newIngFmt','newIngPrecio'].forEach(id=>document.getElementById(id).value='');
-    showToast('✅ Ingrediente agregado');
-  };
-
-  // ════════════════════════════════════════════════
-  // CIF
-  // ════════════════════════════════════════════════
-  function renderCIF() {
-    const rows=STATE.cif||[];
-    document.getElementById('cifTable').innerHTML=rows.length===0
-      ?'<tr><td colspan="4" style="text-align:center;color:var(--text-light);padding:20px">No hay ítems CIF registrados</td></tr>'
-      :rows.map((c,i)=>`<tr>
-        <td>${c.nombre}</td>
-        <td><span class="tag" style="background:#E0F2FE;color:#0C4A6E">${c.categoria}</span></td>
-        <td>${$f(parseFloat(c.monto)||0)}</td>
-        <td><button class="btn btn-sm btn-delete" onclick="deleteCIF(${i})">✕</button></td>
-      </tr>`).join('');
-    const total=(STATE.cif||[]).reduce((s,c)=>s+(parseFloat(c.monto)||0),0);
-    document.getElementById('cifTotal').innerHTML=`Total CIF mensual: <span style="font-family:'Cormorant Garamond',serif;font-size:22px">${$f(total)}</span>`;
-    const nProd=Object.keys(RECIPES).length;
-    document.getElementById('cifDistResult').textContent=`CIF por producto: ${$f(total/nProd)} / mes`;
-  }
-
-  window.addCIF = function() {
-    const nombre=document.getElementById('newCifNombre').value.trim();
-    const monto=parseCLP(document.getElementById('newCifMonto').value);
-    if(!nombre){alert('Ingresa una descripción');return;}
-    addToList('cif',{nombre,categoria:document.getElementById('newCifCat').value,monto});
-    document.getElementById('newCifNombre').value='';
-    document.getElementById('newCifMonto').value='';
-    showToast('✅ CIF guardado y sincronizado');
-  };
-
-  window.deleteCIF = function(i) {
-    if(!confirm('¿Eliminar este ítem CIF?'))return;
-    deleteFromList('cif','_cifKeys',i);
-  };
-
-  // ════════════════════════════════════════════════
-  // PACKAGING
-  // ════════════════════════════════════════════════
-  function renderPKG() {
-    const rows=STATE.packaging||[];
-    document.getElementById('pkgTable').innerHTML=rows.length===0
-      ?'<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:20px">No hay envases registrados</td></tr>'
-      :rows.map((p,i)=>`<tr>
-        <td>${p.nombre}</td>
-        <td>${p.producto==='todos'?'<span class="tag" style="background:#F0FDF4;color:#14532D">Todos</span>':p.producto}</td>
-        <td>${$f(parseFloat(p.precio)||0)}</td>
-        <td>${p.cantidad}</td>
-        <td>${$f((parseFloat(p.precio)||0)*(parseInt(p.cantidad)||1))}</td>
-        <td><button class="btn btn-sm btn-delete" onclick="deletePKG(${i})">✕</button></td>
-      </tr>`).join('');
-  }
-
-  window.addPackaging = function() {
-    const nombre=document.getElementById('newPkgNombre').value.trim();
-    if(!nombre){alert('Ingresa nombre del envase');return;}
-    addToList('packaging',{
-      nombre,producto:document.getElementById('newPkgProd').value,
-      precio:parseCLP(document.getElementById('newPkgPrecio').value),
-      cantidad:parseInt(document.getElementById('newPkgCant').value)||1
-    });
-    document.getElementById('newPkgNombre').value='';
-    document.getElementById('newPkgPrecio').value='';
-    showToast('✅ Envase guardado y sincronizado');
-  };
-
-  window.deletePKG = function(i) {
-    deleteFromList('packaging','_pkgKeys',i);
-  };
-
-  // ════════════════════════════════════════════════
-  // MOD
-  // ════════════════════════════════════════════════
-  function renderMOD() {
-    const rows=STATE.mod||[];
-    const totalMOD=rows.reduce((s,m)=>s+(parseFloat(m.monto)||0),0);
-    const totalHoras=rows.reduce((s,m)=>s+(parseFloat(m.horas)||160),0);
-    const costHora=totalHoras>0?totalMOD/totalHoras:0;
-    document.getElementById('modTable').innerHTML=rows.length===0
-      ?'<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:20px">No hay MOD registrado</td></tr>'
-      :rows.map((m,i)=>`<tr>
-        <td>${m.nombre}</td>
-        <td><span class="tag" style="background:#F0FDF4;color:#14532D">${m.tipo}</span></td>
-        <td>${$f(parseFloat(m.monto)||0)}</td>
-        <td>${m.horas||160}</td>
-        <td>${$f(costHora)}/hr</td>
-        <td><button class="btn btn-sm btn-delete" onclick="deleteMOD(${i})">✕</button></td>
-      </tr>`).join('');
-    document.getElementById('modTotal').innerHTML=`Total MOD: <span style="font-family:'Cormorant Garamond',serif;font-size:22px">${$f(totalMOD)}</span> · Costo hora: ${$f(costHora)}`;
-    document.getElementById('modProdTable').innerHTML=Object.keys(getAllRecipes()).sort().map(p=>{
-      const h=(STATE.modProd&&STATE.modProd[p])?STATE.modProd[p]:0;
-      return`<tr>
-        <td>${p}</td>
-        <td><input type="number" value="${h}" min="0" step="0.1" style="max-width:100px" onchange="updateModProd('${p}',this.value)"></td>
-        <td>${$f(h*costHora)}</td>
-      </tr>`;
-    }).join('');
-  }
-
-  window.addMOD = function() {
-    const nombre=document.getElementById('newModNombre').value.trim();
-    if(!nombre){alert('Ingresa nombre/cargo');return;}
-    addToList('mod',{
-      nombre,tipo:document.getElementById('newModTipo').value,
-      monto:parseCLP(document.getElementById('newModMonto').value),
-      horas:parseFloat(document.getElementById('newModHoras').value)||160
-    });
-    document.getElementById('newModNombre').value='';
-    document.getElementById('newModMonto').value='';
-    showToast('✅ MOD guardado y sincronizado');
-  };
-
-  window.deleteMOD = function(i) {
-    deleteFromList('mod','_modKeys',i);
-  };
-
-  window.updateModProd = function(prod, val) {
-    if(!STATE.modProd) STATE.modProd={};
-    STATE.modProd[prod]=parseFloat(val)||0;
-    saveModProd();
-    renderMOD();
-  };
-
-  // ════════════════════════════════════════════════
-  // CALCULADORA
-  // ════════════════════════════════════════════════
-  window.calcular = function() {
-    const prod=document.getElementById('calcProd').value;
-    const qty=parseFloat(document.getElementById('calcCantidad').value)||1;
-    const allR=getAllRecipes();
-    const recipe=allR[prod];
-    const agg={};
-    for(const ing of recipe.ingredientes){
-      const key=ing.ingrediente.trim().toLowerCase();
-      if(!agg[key]) agg[key]={cantidad:0,unidad:ing.unidad};
-      agg[key].cantidad+=ing.cantidad;
-    }
-    const c=totalCost(prod);
-    const porc=getPorciones(prod);
-    const totalPorciones=porc>0?porc*qty:null;
-    const costXPorc=totalPorciones?c.total/porc:null;
-    document.getElementById('calcResult').innerHTML=`
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;">
-        <div style="padding:14px;background:var(--cream);border-radius:10px;border:1px solid var(--border);text-align:center">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-light)">Producto</div>
-          <div style="font-weight:700;font-size:15px;color:var(--cocoa);margin-top:4px">${prod}</div>
-        </div>
-        <div style="padding:14px;background:var(--cream);border-radius:10px;border:1px solid var(--border);text-align:center">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-light)">Lotes a producir</div>
-          <div style="font-weight:700;font-size:22px;color:var(--cocoa);font-family:'Cormorant Garamond',serif;margin-top:4px">${qty}</div>
-        </div>
-        <div style="padding:14px;background:#FEF3C7;border-radius:10px;border:1px solid #F59E0B;text-align:center">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#92400E">Costo total producción</div>
-          <div style="font-weight:700;font-size:22px;color:var(--cocoa);font-family:'Cormorant Garamond',serif;margin-top:4px">${$f(c.total*qty)}</div>
-        </div>
-        ${totalPorciones?`
-        <div style="padding:14px;background:#F0FDF4;border-radius:10px;border:1px solid #86EFAC;text-align:center">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#14532D">Porciones totales</div>
-          <div style="font-weight:700;font-size:22px;color:var(--cocoa);font-family:'Cormorant Garamond',serif;margin-top:4px">${totalPorciones}</div>
-        </div>
-        <div style="padding:14px;background:var(--cocoa);border-radius:10px;border:1px solid var(--cocoa);text-align:center">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--gold-light)">Costo por porción</div>
-          <div style="font-weight:700;font-size:22px;color:var(--gold-light);font-family:'Cormorant Garamond',serif;margin-top:4px">${$f(costXPorc)}</div>
-        </div>`:`
-        <div style="padding:14px;background:#FFF8EE;border-radius:10px;border:1px dashed var(--gold);text-align:center;display:flex;align-items:center;justify-content:center;">
-          <div style="font-size:12px;color:var(--cocoa-light)">🍰 Ingresa porciones en el dashboard para ver el costo/unidad</div>
-        </div>`}
-      </div>
-      <h4 style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--cocoa);margin-bottom:14px">📋 Ingredientes necesarios para ${qty} lote${qty>1?'s':''}</h4>
-      <div class="tbl-wrap"><table>
-        <thead><tr><th>Ingrediente</th><th>Por lote</th><th>Total (×${qty})</th><th>Unidad</th></tr></thead>
-        <tbody>${Object.entries(agg).map(([k,d])=>`<tr>
-          <td style="text-transform:capitalize">${k}</td>
-          <td class="muted">${d.cantidad%1===0?d.cantidad:d.cantidad.toFixed(3)}</td>
-          <td style="font-weight:600">${(d.cantidad*qty)%1===0?(d.cantidad*qty):(d.cantidad*qty).toFixed(3)}</td>
-          <td>${d.unidad}</td>
-        </tr>`).join('')}</tbody>
-      </table></div>
-      <div style="margin-top:16px;text-align:right">
-        <button class="btn btn-primary" onclick="window.print()">🖨 Imprimir</button>
-      </div>`;
-  };
-
-  // ════════════════════════════════════════════════
-  // RECETAS — Gestión de recetas personalizadas
-  // ════════════════════════════════════════════════
-  let recipeIngredientes = [];   // ingredientes del form en edición
-  let editingRecipeName = null;  // null = nueva, string = editando
-
-  window.showTab = function(id, el) {
-    currentTab = id;
-    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-    document.getElementById('tab-'+id).classList.add('active');
-    if(el) el.classList.add('active');
-    if(id==='dashboard') renderDashboard();
-    if(id==='ingredientes') renderIngTable();
-    if(id==='cif') renderCIF();
-    if(id==='packaging') renderPKG();
-    if(id==='mod') renderMOD();
-    if(id==='detalle') renderDetalleSelects();
-    if(id==='calculadora') renderCalcSelects();
-    if(id==='recetas') renderRecetasTab();
-  };
-
-  function renderRecetasTab() {
-    // Populate datalist — solo nombres limpios del listado de precios, sin duplicados ni claves internas
-    const dl = document.getElementById('ingListDL');
-    if (dl) {
-      const seen = new Set();
-      const opts = [];
-      // Primero los nombres del listado de ingredientes (fuente principal)
-      Object.values(STATE.ingredientes).forEach(i => {
-        const nombre = i.nombre ? i.nombre.toLowerCase() : '';
-        if (nombre && !seen.has(nombre)) {
-          seen.add(nombre);
-          opts.push(`<option value="${nombre}">`);
-        }
-      });
-      // Luego los nombres del ING_MAP (nombres de recetas) que no sean claves técnicas
-      Object.keys(ING_MAP).forEach(k => {
-        const limpio = k.trim();
-        // Excluir claves con guiones bajos (claves internas) o espacios extra
-        if (limpio && !seen.has(limpio) && !limpio.includes('_')) {
-          seen.add(limpio);
-          opts.push(`<option value="${limpio}">`);
-        }
-      });
-      dl.innerHTML = opts.join('');
-    }
-    renderRecipeIngList();
-    renderCustomRecipesList();
-  }
-
-  function renderRecipeIngList() {
-    const container = document.getElementById('recipeIngList');
-    if (!container) return;
-    if (recipeIngredientes.length === 0) {
-      container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-light);font-size:13px;border:1px dashed var(--border);border-radius:8px;margin-bottom:12px">Aún no hay ingredientes en esta receta</div>`;
-      return;
-    }
-    container.innerHTML = `
-      <div class="tbl-wrap" style="margin-bottom:12px">
-        <table>
-          <thead><tr><th>Ingrediente</th><th>Cantidad</th><th>Unidad</th><th>Costo est.</th><th></th></tr></thead>
-          <tbody>
-            ${recipeIngredientes.map((ing, i) => {
-              const mappedKey = ING_MAP[ing.ingrediente] || ing.ingrediente;
-              const pxKg = getPrecioKg(mappedKey);
-              const cantKg = toKg(ing.cantidad, ing.unidad);
-              const costo = pxKg ? cantKg * pxKg : null;
-              return `<tr>
-                <td style="text-transform:capitalize;font-weight:500">${ing.ingrediente}</td>
-                <td>${ing.cantidad}</td>
-                <td><span class="tag" style="background:#F0FDF4;color:#14532D">${ing.unidad}</span></td>
-                <td class="${costo?'':'no-price'}">${costo ? $f(costo) : 'Sin precio'}</td>
-                <td><button class="btn btn-sm btn-delete" onclick="removeIngFromRecipe(${i})">✕</button></td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-      <div style="text-align:right;font-size:13px;color:var(--text-light)">
-        Costo MP estimado: <strong style="color:var(--cocoa);font-size:16px;font-family:'Cormorant Garamond',serif">
-          ${$f(recipeIngredientes.reduce((s,ing) => {
-            const mk = ING_MAP[ing.ingrediente] || ing.ingrediente;
-            const px = getPrecioKg(mk);
-            return s + (px ? toKg(ing.cantidad, ing.unidad) * px : 0);
-          }, 0))}
-        </strong>
-      </div>`;
-  }
-
-  window.addIngToRecipe = function() {
-    const nombre = document.getElementById('riNombre').value.trim().toLowerCase();
-    const cantidad = parseFloat(document.getElementById('riCantidad').value);
-    const unidad = document.getElementById('riUnidad').value;
-    if (!nombre) { alert('Ingresa el nombre del ingrediente'); return; }
-    if (!cantidad || cantidad <= 0) { alert('Ingresa una cantidad válida'); return; }
-    recipeIngredientes.push({ ingrediente: nombre, cantidad, unidad });
-    document.getElementById('riNombre').value = '';
-    document.getElementById('riCantidad').value = '';
-    renderRecipeIngList();
-  };
-
-  window.removeIngFromRecipe = function(i) {
-    recipeIngredientes.splice(i, 1);
-    renderRecipeIngList();
-  };
-
-  window.saveRecipe = function() {
-    const nombre = document.getElementById('rNombre').value.trim();
-    const codigo = document.getElementById('rCodigo').value.trim() || ('C' + Date.now().toString().slice(-4));
-    const porciones = parseInt(document.getElementById('rPorciones').value) || 0;
-
-    if (!nombre) { alert('Ingresa el nombre del producto'); return; }
-    if (recipeIngredientes.length === 0) { alert('Agrega al menos un ingrediente'); return; }
-
-    if (!STATE.customRecipes) STATE.customRecipes = {};
-    STATE.customRecipes[nombre] = {
-      codigo,
-      ingredientes: recipeIngredientes.map(i => ({ ...i })),
-      editedFromExcel: !!RECIPES[nombre]
-    };
-
-    if (porciones > 0) {
-      if (!STATE.porciones) STATE.porciones = {};
-      STATE.porciones[nombre] = porciones;
-      savePorciones();
-    }
-
-    if (editingRecipeName && editingRecipeName !== nombre) {
-      delete STATE.customRecipes[editingRecipeName];
-    }
-
-    saveCustomRecipes();
-    clearRecipeForm();
-    showToast(`✅ Receta "${nombre}" guardada y sincronizada`);
-    populateAllSelects();
-    renderDashboard();
-    renderCustomRecipesList();
-  };
-
-  window.clearRecipeForm = function() {
-    document.getElementById('rNombre').value = '';
-    document.getElementById('rCodigo').value = '';
-    document.getElementById('rPorciones').value = '';
-    document.getElementById('recipeFormTitle').textContent = '+ Nueva receta';
-    recipeIngredientes = [];
-    editingRecipeName = null;
-    renderRecipeIngList();
-  };
-
-  window.editRecipe = function(nombre) {
-    // Allow editing both custom AND Excel recipes
-    const customRecipe = STATE.customRecipes && STATE.customRecipes[nombre];
-    const excelRecipe = RECIPES[nombre];
-    const recipe = customRecipe || excelRecipe;
-
-    if (!recipe) { showToast('Receta no encontrada'); return; }
-
-    // Switch to recetas tab
-    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-    document.querySelectorAll('.nav-tab')[7].classList.add('active');
-    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-    document.getElementById('tab-recetas').classList.add('active');
-    currentTab = 'recetas';
-
-    editingRecipeName = nombre;
-    document.getElementById('rNombre').value = nombre;
-    document.getElementById('rCodigo').value = recipe.codigo || '';
-    document.getElementById('rPorciones').value = getPorciones(nombre) || '';
-    document.getElementById('recipeFormTitle').textContent = `✏️ Editando: ${nombre}`;
-    recipeIngredientes = recipe.ingredientes.map(i => ({ ...i }));
-
-    renderRecetasTab();
-    document.getElementById('recipeFormCard').scrollIntoView({ behavior: 'smooth' });
-  };
-
-  window.restoreExcelRecipe = function(nombre) {
-    if (!confirm(`¿Restaurar "${nombre}" a su receta original del Excel? Se perderán los cambios.`)) return;
-    if (STATE.customRecipes && STATE.customRecipes[nombre]) {
-      delete STATE.customRecipes[nombre];
-      saveCustomRecipes();
-      renderDashboard();
-      renderCustomRecipesList();
-      showToast(`↩ Receta "${nombre}" restaurada al original`);
-    }
-  };
-
-  window.deleteRecipe = function(nombre) {
-    if (RECIPES[nombre]) {
-      showToast('⚠️ Las recetas del Excel no se pueden eliminar. Puedes editarlas o restaurarlas.');
-      return;
-    }
-    if (!confirm(`¿Eliminar la receta "${nombre}"? Esta acción no se puede deshacer.`)) return;
-    if (STATE.customRecipes) {
-      delete STATE.customRecipes[nombre];
-      saveCustomRecipes();
-      populateAllSelects();
-      renderDashboard();
-      renderCustomRecipesList();
-      showToast(`🗑 Receta "${nombre}" eliminada`);
-    }
-  };
-
-  function renderCustomRecipesList() {
-    const container = document.getElementById('customRecipesList');
-    if (!container) return;
-    const allR = getAllRecipes();
-    const keys = Object.keys(allR).sort();
-    const customs = STATE.customRecipes || {};
-
-    container.innerHTML = keys.map(nombre => {
-      const r = allR[nombre];
-      const c = totalCost(nombre);
-      const porc = getPorciones(nombre);
-      const isCustom = !!customs[nombre];
-      const isEdited = customs[nombre] && customs[nombre].editedFromExcel;
-      const isExcel = !!RECIPES[nombre] && !isEdited;
-
-      return `
-        <div style="border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:12px;background:${isCustom&&!isEdited?'#F5F3FF':isEdited?'#FFF8EE':'var(--warm-white)'}">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-            <div>
-              <div style="display:flex;align-items:center;gap:8px">
-                <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:var(--cocoa)">${nombre}</div>
-                ${isEdited?`<span style="background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">✏️ Modificada</span>`:''}
-                ${isCustom&&!isEdited?`<span class="custom-badge">✨ Nueva</span>`:''}
-                ${isExcel?`<span style="background:#E0F2FE;color:#0C4A6E;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600">📊 Excel</span>`:''}
-              </div>
-              <div style="font-size:11px;color:var(--text-light);margin-top:2px">Cód. ${r.codigo} · ${r.ingredientes.length} ingredientes${porc?` · ${porc} porciones`:''}</div>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-              <div style="text-align:center;padding:8px 16px;background:var(--cocoa);border-radius:8px;color:var(--gold-light)">
-                <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px">Costo receta</div>
-                <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700">${$f(c.total)}</div>
-              </div>
-              ${porc>0?`<div style="text-align:center;padding:8px 16px;background:#FEF3C7;border-radius:8px;border:1px solid #F59E0B">
-                <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#92400E">Por porción</div>
-                <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:var(--cocoa)">${$f(c.total/porc)}</div>
-              </div>`:''}
-              <button class="btn btn-sm" style="background:#FEF3C7;color:#92400E;border:1px solid #F59E0B" onclick="editRecipe('${nombre}')">✏️ Editar</button>
-              ${isCustom?`<button class="btn btn-sm btn-delete" onclick="deleteRecipe('${nombre}')">🗑</button>`:''}
-              ${isEdited?`<button class="btn btn-sm" style="background:#F0FDF4;color:#14532D;border:1px solid #86EFAC" onclick="restoreExcelRecipe('${nombre}')">↩ Restaurar original</button>`:''}
-            </div>
-          </div>
-          <div class="tbl-wrap">
-            <table style="font-size:12px">
-              <thead><tr><th>Ingrediente</th><th>Cantidad</th><th>Unidad</th><th>Costo</th></tr></thead>
-              <tbody>
-                ${r.ingredientes.map(ing => {
-                  const mk = ING_MAP[ing.ingrediente] || ing.ingrediente;
-                  const px = getPrecioKg(mk);
-                  const costo = px ? toKg(ing.cantidad, ing.unidad) * px : null;
-                  return `<tr>
-                    <td style="text-transform:capitalize">${ing.ingrediente}</td>
-                    <td>${ing.cantidad}</td>
-                    <td>${ing.unidad}</td>
-                    <td class="${costo?'':'no-price'}">${costo?$f(costo):'Sin precio'}</td>
-                  </tr>`;
-                }).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>`;
-    }).join('');
-  }
-
-  // ════════════════════════════════════════════════
-  // TOAST
-  // ════════════════════════════════════════════════
-  function showToast(msg) {
-    let t=document.getElementById('toast');
-    if(!t){
-      t=document.createElement('div');t.id='toast';
-      t.style.cssText='position:fixed;bottom:24px;right:24px;background:var(--cocoa);color:var(--gold-light);padding:12px 20px;border-radius:8px;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.3);transition:opacity 0.3s';
-      document.body.appendChild(t);
-    }
-    t.textContent=msg;t.style.opacity='1';
-    setTimeout(()=>t.style.opacity='0',2500);
-  }
-  window.showToast = showToast;
-
-  // ════════════════════════════════════════════════
-  // EXPORTAR A GOOGLE SHEETS (CSV multi-hoja)
-  // ════════════════════════════════════════════════
-  window.exportarSheets = function() {
-    const allR = getAllRecipes();
-    const BOM = '\uFEFF'; // UTF-8 BOM para que Sheets reconozca tildes
-
-    // ── HOJA 1: Resumen de costos por producto ──
-    let csv1 = 'RESUMEN DE COSTOS POR PRODUCTO\n';
-    csv1 += `Exportado el;${new Date().toLocaleString('es-CL')}\n\n`;
-    csv1 += 'Producto;Código;Porciones;Costo MP;Costo CIF;Costo MOD;Costo Packaging;Costo Total Receta;Costo por Porción\n';
-    Object.keys(allR).sort().forEach(p => {
-      const c = totalCost(p);
-      const porc = getPorciones(p);
-      const cxp = porc > 0 ? c.total / porc : '';
-      csv1 += `${p};${allR[p].codigo};${porc||''};${Math.round(c.mp)};${Math.round(c.cif)};${Math.round(c.mod)};${Math.round(c.pkg)};${Math.round(c.total)};${cxp?Math.round(cxp):''}\n`;
-    });
-
-    // ── HOJA 2: Ingredientes con precios ──
-    let csv2 = 'LISTADO DE INGREDIENTES - MATERIA PRIMA\n';
-    csv2 += `Exportado el;${new Date().toLocaleString('es-CL')}\n\n`;
-    csv2 += 'Ingrediente;Categoría;Formato Compra;Precio Neto ($);Precio/Kg equiv.\n';
-    Object.entries(STATE.ingredientes).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([key, ing]) => {
-      const pxKg = getPrecioKg(key);
-      csv2 += `${ing.nombre};${ing.categoria||''};${ing.formato_compra||''};${ing.precio_neto||0};${pxKg?Math.round(pxKg):''}\n`;
-    });
-
-    // ── HOJA 3: Detalle de recetas ──
-    let csv3 = 'DETALLE DE RECETAS\n';
-    csv3 += `Exportado el;${new Date().toLocaleString('es-CL')}\n\n`;
-    Object.keys(allR).sort().forEach(p => {
-      const r = allR[p];
-      const c = totalCost(p);
-      const porc = getPorciones(p);
-      csv3 += `\nPRODUCTO: ${p} (Cód. ${r.codigo})${porc ? ' · ' + porc + ' porciones' : ''}\n`;
-      csv3 += `Costo total receta: $${Math.round(c.total).toLocaleString('es-CL')}${porc ? ' · Por porción: $' + Math.round(c.total/porc).toLocaleString('es-CL') : ''}\n`;
-      csv3 += 'Ingrediente;Cantidad;Unidad;Costo estimado\n';
-      // Aggregate ingredients
-      const agg = {};
-      r.ingredientes.forEach(ing => {
-        const key = ing.ingrediente.trim().toLowerCase();
-        if (!agg[key]) agg[key] = { cantidad: 0, unidad: ing.unidad };
-        agg[key].cantidad += ing.cantidad;
-      });
-      Object.entries(agg).forEach(([rawKey, data]) => {
-        const mappedKey = ING_MAP[rawKey] || rawKey;
-        const px = getPrecioKg(mappedKey);
-        const costo = px ? Math.round(toKg(data.cantidad, data.unidad) * px) : '';
-        csv3 += `${rawKey};${data.cantidad};${data.unidad};${costo}\n`;
-      });
-    });
-
-    // ── HOJA 4: CIF ──
-    let csv4 = 'COSTOS INDIRECTOS DE FABRICACIÓN (CIF)\n';
-    csv4 += `Exportado el;${new Date().toLocaleString('es-CL')}\n\n`;
-    csv4 += 'Descripción;Categoría;Monto Mensual ($)\n';
-    (STATE.cif||[]).forEach(c => {
-      csv4 += `${c.nombre};${c.categoria};${c.monto}\n`;
-    });
-    const totalCIFval = (STATE.cif||[]).reduce((s,c)=>s+(parseFloat(c.monto)||0),0);
-    csv4 += `TOTAL;;${Math.round(totalCIFval)}\n`;
-    csv4 += `CIF por producto;;${Math.round(totalCIFval/Math.max(Object.keys(allR).length,1))}\n`;
-
-    // Descargar los 4 archivos CSV
-    const archivos = [
-      { nombre: '1_Resumen_Costos.csv', contenido: BOM + csv1 },
-      { nombre: '2_Ingredientes_MP.csv', contenido: BOM + csv2 },
-      { nombre: '3_Detalle_Recetas.csv', contenido: BOM + csv3 },
-      { nombre: '4_CIF.csv', contenido: BOM + csv4 },
-    ];
-
-    archivos.forEach((arch, i) => {
-      setTimeout(() => {
-        const blob = new Blob([arch.contenido], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = arch.nombre;
-        a.click();
-        URL.revokeObjectURL(url);
-      }, i * 400);
-    });
-
-    showToast('📊 Exportando 4 archivos CSV para Google Sheets...');
-  };
-
-  // ════════════════════════════════════════════════
-  // INIT
-  // ════════════════════════════════════════════════
-  window.addEventListener('DOMContentLoaded', () => {
-    initFirebase();
-  });
-</script>
-
+<title>Gestión de Inventario - ANMICODA</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-  :root {
-    --cream:#FAF6F0;--warm-white:#FFF8F2;--cocoa:#3D2314;--cocoa-light:#6B3E26;
-    --rose:#C4717A;--rose-light:#E8A8AD;--gold:#C9A84C;--gold-light:#F0D88A;
-    --sage:#7A9E7E;--border:#E8DDD5;--shadow:rgba(61,35,20,0.08);
-    --text:#2D1A0E;--text-light:#8B6D5A;--danger:#C0392B;
-  }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);min-height:100vh;}
 
-  /* LOADING */
-  #loadingScreen {
-    position:fixed;inset:0;background:var(--cocoa);display:flex;flex-direction:column;
-    align-items:center;justify-content:center;z-index:9999;
-  }
-  .loading-logo{font-family:'Cormorant Garamond',serif;font-size:38px;color:var(--gold-light);letter-spacing:3px;margin-bottom:24px;}
-  .loading-sub{color:#a08060;font-size:14px;margin-bottom:32px;}
-  .spinner{width:36px;height:36px;border:3px solid rgba(201,168,76,0.3);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;}
-  @keyframes spin{to{transform:rotate(360deg);}}
 
-  /* SETUP BANNER */
-  #setupBanner{background:#1a0a00;border:1px solid var(--gold);border-radius:0;padding:14px 32px;display:none;}
-  #setupBanner.visible{display:block;}
-  .setup-title{font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--gold-light);margin-bottom:8px;}
-  .setup-steps{font-size:12px;color:#c8a882;line-height:1.8;}
-  .setup-steps strong{color:var(--gold-light);}
-  .setup-close{float:right;background:none;border:1px solid var(--gold);color:var(--gold);padding:4px 12px;border-radius:4px;cursor:pointer;font-size:11px;}
 
-  /* HEADER */
-  header{background:var(--cocoa);padding:14px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(0,0,0,0.3);}
-  .logo{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;color:var(--gold-light);letter-spacing:2px;}
-  .logo span{color:var(--rose-light);font-weight:300;}
-  .header-right{display:flex;align-items:center;gap:12px;}
-  #syncBadge{font-size:11px;color:#a08060;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);padding:5px 12px;border-radius:20px;}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-  /* SYNC DOT */
-  .sync-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-  .sync-dot.connecting{background:#F59E0B;animation:pulse 1s infinite;}
-  .sync-dot.synced{background:#22C55E;}
-  .sync-dot.saving{background:#F59E0B;animation:pulse 0.5s infinite;}
-  .sync-dot.error{background:#EF4444;}
-  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+:root {
+  --bg:        #f0f7ff;
+  --surface:   #ffffff;
+  --surface2:  #e8f3fd;
+  --border:    #bdd9f5;
+  --blue-100:  #dbeafe;
+  --blue-200:  #bfdbfe;
+  --blue-500:  #3b82f6;
+  --blue-600:  #2563eb;
+  --blue-700:  #1d4ed8;
+  --cyan-400:  #22d3ee;
+  --cyan-600:  #0891b2;
+  --green-400: #34d399;
+  --green-600: #059669;
+  --amber-400: #fbbf24;
+  --amber-600: #d97706;
+  --red-400:   #f87171;
+  --red-600:   #dc2626;
+  --text:      #1e3a5f;
+  --text2:     #3b6394;
+  --muted:     #6b90b8;
+  --font: 'Inter', system-ui, sans-serif;
+  --r: 12px;
+  --sh: 0 1px 3px rgba(37,99,235,.07), 0 1px 8px rgba(37,99,235,.05);
+}
 
-  /* SETUP BTN */
-  .btn-setup{background:none;border:1px solid var(--gold);color:var(--gold-light);padding:5px 12px;border-radius:6px;cursor:pointer;font-size:11px;font-family:'DM Sans',sans-serif;}
-  .btn-setup:hover{background:rgba(201,168,76,0.15);}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; }
 
-  /* TABS */
-  .nav-tabs{background:var(--cocoa-light);display:flex;gap:2px;padding:0 32px;overflow-x:auto;scrollbar-width:none;}
-  .nav-tabs::-webkit-scrollbar{display:none;}
-  .nav-tab{padding:12px 18px;font-size:12px;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;color:#c8a882;cursor:pointer;border:none;background:none;white-space:nowrap;border-bottom:3px solid transparent;transition:all 0.2s;}
-  .nav-tab:hover{color:var(--gold-light);}
-  .nav-tab.active{color:var(--gold-light);border-bottom-color:var(--gold);background:rgba(201,168,76,0.1);}
+/* ── SETUP OVERLAY ── */
+#setup-overlay { display:none !important; }
+#setup-overlay.force-show {
+  position: fixed; inset: 0; background: rgba(240,247,255,.96);
+  display: none;
+}
+.setup-box {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 20px; padding: 40px; width: 480px; max-width: 95vw;
+  box-shadow: 0 8px 40px rgba(37,99,235,.14);
+}
+.setup-box h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+.setup-box p  { color: var(--muted); font-size: 13px; line-height: 1.65; margin-bottom: 20px; }
+.setup-box ol { color: var(--muted); font-size: 13px; line-height: 2.2; padding-left: 18px; margin-bottom: 20px; }
+.setup-box ol a { color: var(--blue-600); }
+.setup-box label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+.setup-box input {
+  width: 100%; background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: 9px; padding: 10px 13px; color: var(--text);
+  font-family: var(--font); font-size: 13px; outline: none; margin-bottom: 12px;
+  transition: border-color .2s;
+}
+.setup-box input:focus { border-color: var(--blue-600); }
+.setup-note { background: var(--blue-100); border: 1px solid var(--blue-200); border-radius: 9px; padding: 11px 14px; font-size: 12px; color: var(--text2); margin-bottom: 20px; }
+.btn-primary { width: 100%; background: var(--blue-600); color: #fff; border: none; border-radius: 9px; padding: 13px; font-family: var(--font); font-size: 14px; font-weight: 600; cursor: pointer; }
+.btn-primary:hover { background: var(--blue-700); }
+.link-btn { background: none; border: none; color: var(--muted); font-family: var(--font); font-size: 13px; cursor: pointer; text-decoration: underline; }
 
-  /* MAIN */
-  .main{padding:28px 32px;max-width:1400px;margin:0 auto;}
-  .tab-content{display:none;}
-  .tab-content.active{display:block;}
+/* ── APP SHELL ── */
+#app { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
 
-  .section-title{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;color:var(--cocoa);margin-bottom:6px;}
-  .section-sub{font-size:13px;color:var(--text-light);margin-bottom:28px;}
+/* ── HEADER ── */
+header {
+  background: var(--surface); border-bottom: 1.5px solid var(--border);
+  padding: 0 20px; height: 56px; display: flex; align-items: center; gap: 12px;
+  flex-shrink: 0; box-shadow: var(--sh);
+}
+.logo { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 15px; color: var(--blue-600); }
+.logo-sq { width: 32px; height: 32px; background: var(--blue-600); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.hdr-right { margin-left: auto; display: flex; gap: 7px; }
+.btn-sm {
+  padding: 7px 13px; border-radius: 8px; border: 1.5px solid var(--border);
+  background: var(--surface2); color: var(--text2); font-family: var(--font);
+  font-size: 12px; font-weight: 500; cursor: pointer; transition: all .15s;
+}
+.btn-sm:hover { border-color: var(--blue-600); color: var(--blue-600); }
+.sdot { width: 7px; height: 7px; border-radius: 50%; background: var(--green-400); display: inline-block; margin-right: 5px; }
+.sdot.spin { background: var(--amber-400); animation: blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-  .card{background:white;border-radius:12px;padding:24px;box-shadow:0 2px 12px var(--shadow);border:1px solid var(--border);}
+/* ── MAIN SCROLL AREA ── */
+main { flex: 1; overflow-y: auto; padding: 18px 20px 10px; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
 
-  /* KPIS */
-  .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:28px;}
-  .kpi{background:white;border-radius:12px;padding:20px;text-align:center;border:1px solid var(--border);box-shadow:0 2px 8px var(--shadow);position:relative;overflow:hidden;}
-  .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;}
-  .kpi.rose::before{background:var(--rose);}
-  .kpi.gold::before{background:var(--gold);}
-  .kpi.sage::before{background:var(--sage);}
-  .kpi.cocoa::before{background:var(--cocoa-light);}
-  .kpi-val{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;color:var(--cocoa);}
-  .kpi-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-light);margin-top:4px;}
+/* ── BOTTOM NAV ── */
+.bottom-nav {
+  height: 64px; background: var(--surface); border-top: 1.5px solid var(--border);
+  display: flex; flex-shrink: 0; box-shadow: 0 -2px 12px rgba(37,99,235,.08);
+}
+.nav-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 3px; border: none; background: transparent;
+  cursor: pointer; color: var(--muted); font-family: var(--font);
+  font-size: 11px; font-weight: 500; transition: color .15s; position: relative;
+}
+.nav-btn .ni { font-size: 21px; line-height: 1; }
+.nav-btn.active { color: var(--blue-600); }
+.nav-btn.active::before {
+  content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 36px; height: 3px; background: var(--blue-600); border-radius: 0 0 4px 4px;
+}
 
-  /* PRODUCTS GRID */
-  .products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
-  .product-card{background:white;border-radius:12px;padding:20px;border:1px solid var(--border);box-shadow:0 2px 8px var(--shadow);cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;}
-  .product-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px var(--shadow);border-color:var(--rose-light);}
-  .product-card-name{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;color:var(--cocoa);margin-bottom:14px;}
-  .product-card-code{font-size:10px;color:var(--text-light);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;}
-  .cost-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:12px;border-bottom:1px solid var(--border);}
-  .cost-row:last-child{border-bottom:none;}
-  .cost-label{color:var(--text-light);}
-  .cost-val{font-weight:600;color:var(--text);}
-  .total-cost{margin-top:14px;padding:10px 14px;background:var(--cream);border-radius:8px;display:flex;justify-content:space-between;align-items:center;font-size:14px;}
-  .total-cost .val{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:var(--cocoa);}
-  .badge-mp{background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:20px;font-size:10px;}
-  .badge-cif{background:#E0F2FE;color:#0C4A6E;padding:2px 8px;border-radius:20px;font-size:10px;}
-  .badge-mod{background:#F0FDF4;color:#14532D;padding:2px 8px;border-radius:20px;font-size:10px;}
-  .badge-env{background:#FDF4FF;color:#581C87;padding:2px 8px;border-radius:20px;font-size:10px;}
+/* ── KPI CARDS ── */
+.kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 13px; margin-bottom: 18px; }
+.kpi {
+  background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--r);
+  padding: 16px 18px; box-shadow: var(--sh); overflow: hidden; position: relative;
+}
+.kpi::after { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius: var(--r) var(--r) 0 0; }
+.kpi.c-blue::after   { background: var(--blue-600); }
+.kpi.c-cyan::after   { background: var(--cyan-600); }
+.kpi.c-amber::after  { background: var(--amber-600); }
+.kpi.c-red::after    { background: var(--red-600); }
+.kpi.c-green::after  { background: var(--green-600); }
+.kpi-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 7px; }
+.kpi-val { font-size: 30px; font-weight: 700; line-height: 1; color: var(--text); }
+.kpi-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
 
-  /* TABLES */
-  .tbl-wrap{overflow-x:auto;}
-  table{width:100%;border-collapse:collapse;font-size:13px;}
-  thead th{background:var(--cocoa);color:var(--gold-light);padding:12px 14px;text-align:left;font-size:11px;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;}
-  thead th:first-child{border-radius:8px 0 0 0;}thead th:last-child{border-radius:0 8px 0 0;}
-  tbody tr{border-bottom:1px solid var(--border);}
-  tbody tr:hover{background:var(--warm-white);}
-  tbody td{padding:11px 14px;color:var(--text);vertical-align:middle;}
-  tbody td.muted{color:var(--text-light);font-size:12px;}
-  .no-price{color:var(--danger);font-style:italic;}
+/* ── CARDS ── */
+.card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--r); padding: 18px; box-shadow: var(--sh); }
+.card + .card, .g2 + .card, .g3 + .card { margin-top: 14px; }
+.ct { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+.ct span { color: var(--text); font-size: 14px; text-transform: none; letter-spacing: 0; }
 
-  /* INPUTS */
-  input[type=text],input[type=number],select{border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;font-family:'DM Sans',sans-serif;background:white;color:var(--text);transition:border-color 0.2s;width:100%;}
-  input[type=text]:focus,input[type=number]:focus,select:focus{outline:none;border-color:var(--rose);box-shadow:0 0 0 3px rgba(196,113,122,0.1);}
+/* ── GRID HELPERS ── */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 14px; }
 
-  /* BUTTONS */
-  .btn{padding:9px 20px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;}
-  .btn-primary{background:var(--cocoa);color:var(--gold-light);}
-  .btn-primary:hover{background:var(--cocoa-light);}
-  .btn-sm{padding:5px 12px;font-size:12px;border-radius:6px;}
-  .btn-save{background:var(--sage);color:white;}
-  .btn-save:hover{background:#5d8461;}
-  .btn-delete{background:transparent;border:1px solid var(--border);color:var(--danger);}
-  .btn-delete:hover{background:#FEE2E2;border-color:var(--danger);}
-  .btn-gold{background:var(--gold);color:var(--cocoa);}
-  .btn-gold:hover{background:var(--gold-light);}
+/* ── MERMA BANNER ── */
+.merma-banner {
+  background: #e0f0ff;
+  border: 1.5px solid #93c5fd; border-radius: var(--r); padding: 14px 18px 18px;
+  margin-bottom: 14px;
+}
+.merma-banner-title { font-size: 13px; font-weight: 700; color: #1d4ed8; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
 
-  /* FORM */
-  .form-row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:24px;}
-  .form-group{display:flex;flex-direction:column;gap:5px;flex:1;min-width:140px;}
-  .form-group label{font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-light);font-weight:500;}
+/* ── CHART WRAPPERS ── */
+.ch { position: relative; }
+.ch-200 { height: 200px; }
+.ch-180 { height: 180px; }
+.ch-160 { height: 160px; }
 
-  /* DETAIL */
-  .detail-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:16px;}
-  .detail-cost-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px;}
-  .dcs-box{padding:16px;border-radius:10px;text-align:center;}
-  .dcs-box.mp{background:#FEF3C7;border:1px solid #F59E0B;}
-  .dcs-box.cif{background:#E0F2FE;border:1px solid #38BDF8;}
-  .dcs-box.mod{background:#F0FDF4;border:1px solid #86EFAC;}
-  .dcs-box.env{background:#FDF4FF;border:1px solid #D8B4FE;}
-  .dcs-box.total{background:var(--cocoa);border:1px solid var(--cocoa);color:white;}
-  .dcs-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;opacity:0.7;}
-  .dcs-val{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;margin-top:4px;}
-  .dcs-box.total .dcs-val{color:var(--gold-light);}
+/* ── TABLE ── */
+table { width: 100%; border-collapse: collapse; }
+thead tr { border-bottom: 1.5px solid var(--border); }
+th { text-align: left; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); padding: 8px 10px; }
+td { padding: 10px 10px; font-size: 13px; border-bottom: 1px solid var(--surface2); }
+tbody tr:hover { background: var(--surface2); }
 
-  /* CALC */
-  .calc-box{background:white;border-radius:16px;padding:32px;border:2px solid var(--border);max-width:700px;margin:0 auto;}
+/* ── PILLS ── */
+.pill { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.pill-ent  { background: #d1fae5; color: #065f46; }
+.pill-ven  { background: var(--blue-100); color: var(--blue-700); }
+.pill-sal  { background: #fef3c7; color: #92400e; }
+.pill-mer  { background: #fee2e2; color: #991b1b; }
 
-  /* ALERTS */
-  .alert{padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;}
-  .alert-warn{background:#FEF9E7;border:1px solid var(--gold);color:#7D6608;}
-  .alert-info{background:#EBF5FB;border:1px solid #AED6F1;color:#154360;}
+/* ── BADGES ── */
+.badge { padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.b-red   { background: #fee2e2; color: #991b1b; }
+.b-amber { background: #fef3c7; color: #92400e; }
+.b-green { background: #d1fae5; color: #065f46; }
+.b-blue  { background: var(--blue-100); color: var(--blue-700); }
 
-  .tag{display:inline-block;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;}
-  .divider{border:none;border-top:1px solid var(--border);margin:24px 0;}
-  .search-input{max-width:300px;margin-bottom:18px;}
-  .unmapped-badge{background:#FEE2E2;color:var(--danger);padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;}
-  .custom-badge{background:#EDE9FE;color:#5B21B6;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:0.5px;}
+/* ── MOVEMENTS ── */
+.page-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+.page-hdr h2 { font-size: 18px; font-weight: 700; }
+.act-btns { display: flex; gap: 7px; flex-wrap: wrap; }
+.btn-act {
+  padding: 8px 14px; border-radius: 8px; border: 1.5px solid;
+  font-family: var(--font); font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity .15s;
+}
+.btn-act:hover { opacity: .8; }
+.ba-ent { border-color: var(--green-600); color: var(--green-600); background: #d1fae5; }
+.ba-ven { border-color: var(--blue-600); color: var(--blue-600); background: var(--blue-100); }
+.ba-sal { border-color: var(--amber-600); color: var(--amber-600); background: #fef3c7; }
+.ba-mer { border-color: var(--red-600); color: var(--red-600); background: #fee2e2; }
 
-  /* PORCIONES */
-  .porcion-row{margin-top:10px;padding:10px 14px;background:linear-gradient(135deg,#FFF8EE,#FEF3C7);border-radius:8px;border:1px solid var(--gold);display:flex;justify-content:space-between;align-items:center;gap:8px;}
-  .porcion-label{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--cocoa-light);font-weight:500;}
-  .porcion-input{width:58px;padding:4px 6px;border:1px solid var(--gold);border-radius:6px;font-size:13px;font-weight:700;text-align:center;color:var(--cocoa);background:white;}
-  .porcion-cost{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:700;color:var(--cocoa);white-space:nowrap;}
+.filters { display: flex; gap: 8px; margin-bottom: 13px; flex-wrap: wrap; }
+.filters select, .filters input {
+  background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px;
+  color: var(--text); font-family: var(--font); font-size: 13px; padding: 7px 11px; outline: none;
+}
+.filters select:focus, .filters input:focus { border-color: var(--blue-600); }
 
-  @media(max-width:640px){.main{padding:16px;}.nav-tabs{padding:0 8px;}header{padding:12px 16px;}}
+/* ── STOCK GRID ── */
+.stock-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap: 13px; }
+.sc {
+  background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--r);
+  padding: 15px; box-shadow: var(--sh); position: relative;
+}
+.sc-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; padding-right: 18px; }
+.sc-cat  { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+.sc-qty  { font-size: 26px; font-weight: 700; margin-bottom: 5px; }
+.sc-bar-bg { height: 5px; background: var(--surface2); border-radius: 3px; margin-bottom: 6px; }
+.sc-bar    { height: 5px; border-radius: 3px; }
+.sc-foot   { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.sdot2 { width: 9px; height: 9px; border-radius: 50%; position: absolute; top: 14px; right: 13px; }
+.d-ok   { background: var(--green-400); }
+.d-low  { background: var(--amber-400); }
+.d-crit { background: var(--red-400); }
+
+/* ── MODAL ── */
+.overlay {
+  position: fixed; inset: 0; background: rgba(30,58,95,.3); backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center; z-index: 600;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 16px; padding: 26px; width: 430px; max-width: 95vw;
+  box-shadow: 0 12px 40px rgba(37,99,235,.16);
+  transform: translateY(10px); transition: transform .2s;
+}
+.overlay.open .modal { transform: translateY(0); }
+.modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.modal label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); margin-top: 12px; margin-bottom: 4px; }
+.modal input, .modal select, .modal textarea {
+  width: 100%; background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: 8px; padding: 9px 12px; color: var(--text);
+  font-family: var(--font); font-size: 13px; outline: none; transition: border-color .2s;
+}
+.modal input:focus, .modal select:focus, .modal textarea:focus { border-color: var(--blue-600); }
+.modal textarea { resize: vertical; min-height: 56px; }
+.modal-btns { display: flex; gap: 9px; margin-top: 18px; }
+.btn-cancel { flex: 1; padding: 10px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface2); color: var(--muted); font-family: var(--font); font-size: 13px; cursor: pointer; font-weight: 500; }
+.btn-ok { flex: 2; padding: 10px; border-radius: 8px; border: none; font-family: var(--font); font-size: 13px; font-weight: 600; cursor: pointer; color: #fff; }
+.bok-ent { background: var(--green-600); }
+.bok-ven { background: var(--blue-600); }
+.bok-sal { background: var(--amber-600); }
+.bok-mer { background: var(--red-600); }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed; bottom: 76px; right: 18px;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 11px; padding: 11px 16px; font-size: 13px;
+  z-index: 900; opacity: 0; transform: translateY(6px);
+  transition: all .25s; pointer-events: none;
+  box-shadow: 0 4px 20px rgba(37,99,235,.12); max-width: 280px;
+}
+#toast.show { opacity: 1; transform: none; }
+#toast.success { border-left: 4px solid var(--green-600); }
+#toast.error   { border-left: 4px solid var(--red-600); }
+#toast.info    { border-left: 4px solid var(--blue-600); }
+
+.empty { text-align: center; padding: 36px; color: var(--muted); font-size: 14px; }
+.search { padding: 8px 13px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); font-family: var(--font); font-size: 13px; outline: none; width: 220px; }
+.search:focus { border-color: var(--blue-600); }
+
+@media(max-width:700px) {
+  .kpi-row, .g2, .g3, .g4 { grid-template-columns: 1fr 1fr; }
+}
+@media(max-width:480px) {
+  .kpi-row { grid-template-columns: 1fr 1fr; }
+  .g2, .g3, .g4 { grid-template-columns: 1fr; }
+}
+
+
+
 </style>
 </head>
 <body>
-
-<!-- LOADING SCREEN -->
-<div id="loadingScreen">
-  <div class="loading-logo">Pastelería · Costeo</div>
-  <div class="loading-sub">Conectando con la nube...</div>
-  <div class="spinner"></div>
-</div>
-
-<!-- APP -->
-<div id="appShell" style="display:none">
-
-  <!-- SETUP BANNER (visible si no está configurado Firebase) -->
-  <div id="setupBanner">
-    <button class="setup-close" onclick="document.getElementById('setupBanner').classList.remove('visible')">Cerrar</button>
-    <div class="setup-title">⚙️ Configuración Firebase requerida</div>
-    <div class="setup-steps">
-      <strong>Paso 1</strong> — Ve a <strong>console.firebase.google.com</strong> y crea un proyecto gratuito<br>
-      <strong>Paso 2</strong> — En tu proyecto, ve a <strong>Realtime Database → Crear base de datos</strong> (modo prueba)<br>
-      <strong>Paso 3</strong> — Ve a <strong>⚙️ Configuración del proyecto → Tus apps → Web (&lt;/&gt;)</strong><br>
-      <strong>Paso 4</strong> — Copia los valores y pégalos en el bloque <code>firebaseConfig</code> al inicio del archivo HTML<br>
-      <strong>Paso 5</strong> — Comparte el archivo con tu colega — ambas verán cambios en tiempo real ✨
+<!-- SETUP -->
+<div id="setup-overlay">
+  <div class="setup-box">
+    <h2>🐟 Sistema de Inventario</h2>
+    <p>Gestión de producción, mermas y stock para proteínas procesadas. Conecta con Google Sheets para guardar en la nube.</p>
+    <ol>
+      <li>Crea una planilla en <a href="https://sheets.google.com" target="_blank">Google Sheets</a></li>
+      <li>Ve a <strong>Extensiones → Apps Script</strong></li>
+      <li>Pega el código del comentario al final de este HTML</li>
+      <li>Despliega como webapp y copia la URL</li>
+    </ol>
+    <div class="setup-note">💡 Los productos de tu Excel ya están precargados. Puedes usar el modo demo sin configurar nada.</div>
+    <label>URL del Apps Script Web App</label>
+    <input type="url" id="inp-url" placeholder="https://script.google.com/macros/s/.../exec">
+    <label>Nombre del negocio</label>
+    <input type="text" id="inp-biz" placeholder="Ej: Procesadora Austral" value="ANMICODA">
+    <button class="btn-primary" onclick="doSetup()">Conectar con Google Sheets</button>
+    <div style="text-align:center;margin-top:13px">
+      <button class="link-btn" onclick="doDemo()">Usar modo demo (datos de ejemplo)</button>
     </div>
   </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- APP -->
+<div id="app">
 
   <header>
-    <div class="logo">Pastelería <span>· Sistema de Costeo</span></div>
-    <div class="header-right">
-      <div id="syncBadge">Iniciando...</div>
-      <button class="btn-setup" onclick="exportarSheets()">📊 Exportar Sheets</button>
-      <button class="btn-setup" onclick="document.getElementById('setupBanner').classList.toggle('visible')">⚙️ Firebase</button>
+    <div class="logo">
+      <div class="logo-sq">🐟</div>
+      <span id="biz-name">Inventario</span>
+    </div>
+    <div class="hdr-right">
+      <button class="btn-sm" onclick="exportCSV()">⬇️ Exportar CSV</button>
+      <button class="btn-sm" onclick="openAddProduct()">+ Producto</button>
+      <button class="btn-sm" onclick="confirmReset()" title="Borrar todos los datos">🗑️</button>
     </div>
   </header>
 
-  <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showTab('dashboard',this)">📊 Dashboard</button>
-    <button class="nav-tab" onclick="showTab('detalle',this)">🔍 Detalle</button>
-    <button class="nav-tab" onclick="showTab('ingredientes',this)">🧂 Ingredientes MP</button>
-    <button class="nav-tab" onclick="showTab('cif',this)">⚙️ CIF</button>
-    <button class="nav-tab" onclick="showTab('packaging',this)">📦 Packaging</button>
-    <button class="nav-tab" onclick="showTab('mod',this)">👩‍🍳 MOD</button>
-    <button class="nav-tab" onclick="showTab('calculadora',this)">🧮 Calculadora</button>
-    <button class="nav-tab" onclick="showTab('recetas',this)">📋 Recetas</button>
-  </div>
+  <main>
 
-  <div class="main">
+    <!-- ═══ DASHBOARD ═══ -->
+    <div id="tab-dashboard" class="tab-panel active">
 
-    <!-- DASHBOARD -->
-    <div class="tab-content active" id="tab-dashboard">
-      <div class="section-title">Dashboard General</div>
-      <div class="section-sub">Costos en tiempo real. Cualquier cambio tuyo o de tu colega aparece aquí instantáneamente.</div>
-      <div class="kpi-row" id="kpiRow"></div>
-      <div style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
-        <input type="text" class="search-input" placeholder="🔍 Buscar producto..." oninput="filterDashboard(this.value)" style="margin-bottom:0">
-        <select id="sortDash" onchange="renderDashboard()" style="width:auto;min-width:180px;">
-          <option value="nombre">Ordenar por nombre</option>
-          <option value="costo_asc">Menor costo total</option>
-          <option value="costo_desc">Mayor costo total</option>
+      <div class="kpi-row">
+        <div class="kpi c-blue">
+          <div class="kpi-lbl">Productos</div>
+          <div class="kpi-val" id="k-prod">—</div>
+          <div class="kpi-sub">en catálogo</div>
+        </div>
+        <div class="kpi c-cyan">
+          <div class="kpi-lbl">Ventas mes</div>
+          <div class="kpi-val" id="k-vent">—</div>
+          <div class="kpi-sub">kg / unidades</div>
+        </div>
+        <div class="kpi c-amber">
+          <div class="kpi-lbl">Merma mes</div>
+          <div class="kpi-val" id="k-merm">—</div>
+          <div class="kpi-sub">kg perdidos</div>
+        </div>
+        <div class="kpi c-red">
+          <div class="kpi-lbl">Stock crítico</div>
+          <div class="kpi-val" id="k-crit">—</div>
+          <div class="kpi-sub">bajo mínimo</div>
+        </div>
+      </div>
+
+      <!-- MERMA ANALYSIS BANNER -->
+      <div class="merma-banner">
+        <div class="merma-banner-title">⚠️ Análisis de mermas — producción</div>
+        <div class="g2">
+          <div class="card" style="margin:0">
+            <div class="ct"><span>Merma por proteína (kg acumulado)</span></div>
+            <div class="ch ch-200"><canvas id="ch-prot"></canvas></div>
+          </div>
+          <div class="card" style="margin:0">
+            <div class="ct"><span>Merma por etapa de proceso (%)</span></div>
+            <div class="ch ch-200"><canvas id="ch-etapa"></canvas></div>
+          </div>
+        </div>
+        <div class="g3" style="margin-top:14px">
+          <div class="card" style="margin:0">
+            <div class="ct"><span>Top productos con más merma</span></div>
+            <div class="ch ch-180"><canvas id="ch-top-prod"></canvas></div>
+          </div>
+          <div class="card" style="margin:0">
+            <div class="ct"><span>Merma vs ventas (mes)</span></div>
+            <div class="ch ch-180"><canvas id="ch-mv"></canvas></div>
+          </div>
+          <div class="card" style="margin:0">
+            <div class="ct"><span>Tendencia diaria de mermas</span></div>
+            <div class="ch ch-180"><canvas id="ch-trend"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECOND ROW -->
+      <div class="g2">
+        <div class="card" style="margin:0">
+          <div class="ct"><span>Movimientos esta semana</span></div>
+          <div class="ch ch-180"><canvas id="ch-semana"></canvas></div>
+        </div>
+        <div class="card" style="margin:0">
+          <div class="ct">
+            <span>Stock crítico</span>
+            <span class="badge b-red" id="k-crit2">0</span>
+          </div>
+          <div id="crit-list"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="ct"><span>Últimos movimientos</span></div>
+        <table>
+          <thead><tr><th>Producto</th><th>Tipo</th><th>Proceso</th><th>Qty</th><th>Fecha</th><th>Usuario</th></tr></thead>
+          <tbody id="recent-tb"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ MOVIMIENTOS ═══ -->
+    <div id="tab-movimientos" class="tab-panel">
+      <div class="page-hdr">
+        <h2>Movimientos</h2>
+        <div class="act-btns">
+          <button class="btn-act ba-ent" onclick="openMov('entrada')">＋ Entrada</button>
+          <button class="btn-act ba-ven" onclick="openMov('venta')">＋ Venta</button>
+          <button class="btn-act ba-sal" onclick="openMov('salida')">＋ Salida / Merma</button>
+          
+        </div>
+      </div>
+      <div class="filters">
+        <select id="f-type" onchange="renderMovs()">
+          <option value="">Todos los tipos</option>
+          <option value="entrada">Entrada</option>
+          <option value="venta">Venta</option>
+          <option value="salida">Salida</option>
+          <option value="merma">Merma</option>
+          <option value="produccion">Produccion</option>
         </select>
+        <select id="f-prod" onchange="renderMovs()"><option value="">Todos los productos</option></select>
+        <input type="date" id="f-date" onchange="renderMovs()">
+        <button class="btn-sm" onclick="clearF()">Limpiar</button>
       </div>
-      <div class="products-grid" id="productsGrid"></div>
+      <div class="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th><th>Producto</th><th>Proceso</th><th>Tipo</th>
+              <th>Qty</th><th>Precio</th><th>Total</th><th>Notas</th><th>Usuario</th>
+            </tr>
+          </thead>
+          <tbody id="movs-tb"></tbody>
+        </table>
+        <div id="movs-empty" class="empty" style="display:none">Sin movimientos registrados</div>
+      </div>
     </div>
 
-    <!-- DETALLE -->
-    <div class="tab-content" id="tab-detalle">
-      <div class="section-title">Detalle de Producto</div>
-      <div class="section-sub">Desglose completo de costos por producto.</div>
-      <div class="card" style="margin-bottom:24px;">
-        <div class="form-row" style="margin-bottom:0">
-          <div class="form-group">
-            <label>Producto</label>
-            <select id="detalleSelect" onchange="renderDetalle()">
-              <option value="">— Seleccionar producto —</option>
-            </select>
-          </div>
-        </div>
+    <!-- ═══ STOCK ═══ -->
+    <div id="tab-stock" class="tab-panel">
+      <div class="page-hdr">
+        <h2>Stock de productos</h2>
+        <input class="search" placeholder="🔍 Buscar producto..." oninput="renderStock(this.value)">
       </div>
-      <div id="detalleContent"></div>
-    </div>
+      <div class="stock-grid" id="stock-grid"></div>
+      <div id="stock-empty" class="empty" style="display:none">Sin productos registrados</div>
 
-    <!-- INGREDIENTES -->
-    <div class="tab-content" id="tab-ingredientes">
-      <div class="section-title">Ingredientes · Materia Prima</div>
-      <div class="section-sub">Modifica precios y formatos. Los cambios se sincronizan al instante con tu colega.</div>
-      <div class="alert alert-warn">⚠️ Los ingredientes en <strong>rojo</strong> no tienen precio asignado. Asígnales precio para un costeo preciso.</div>
-      <div class="card" style="margin-bottom:20px;">
-        <div style="font-weight:600;font-size:14px;margin-bottom:14px;color:var(--cocoa)">+ Agregar nuevo ingrediente</div>
-        <div class="form-row">
-          <div class="form-group"><label>Nombre</label><input type="text" id="newIngName" placeholder="Ej: Pasta de pistacho"></div>
-          <div class="form-group"><label>Categoría</label><input type="text" id="newIngCat" placeholder="Ej: Pastas"></div>
-          <div class="form-group"><label>Formato compra</label><input type="text" id="newIngFmt" placeholder="Ej: KG, 500 GRS"></div>
-          <div class="form-group"><label>Precio neto ($)</label><input type="number" id="newIngPrecio" min="0" placeholder="0"></div>
-          <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="addIngrediente()">Agregar</button></div>
+    <!-- ═══ PROTEINAS ═══ -->
+    <div id="tab-proteinas" class="tab-panel">
+      <div class="page-hdr">
+        <h2>Proteinas y precios netos</h2>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="prot-filter" onchange="renderProteinas()" style="padding:7px 11px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font);font-size:13px;outline:none">
+            <option value="">Todas las proteinas</option>
+            <option value="prot-salmon">Salmon</option>
+            <option value="prot-pollo">Pollo</option>
+            <option value="prot-jaiba">Jaiba</option>
+            <option value="prot-tocino">Tocino</option>
+            <option value="prot-camaron">Camaron</option>
+            <option value="prot-pulpo">Pulpo</option>
+            <option value="prot-carne">Carne</option>
+          </select>
+          <select id="tipo-filter" onchange="renderProteinas()" style="padding:7px 11px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font);font-size:13px;outline:none">
+            <option value="">Todos los tipos</option>
+            <option value="Producto terminado">Productos terminados</option>
+            <option value="Materia prima">Materias primas</option>
+          </select>
         </div>
       </div>
       <div class="card">
-        <div class="tbl-wrap">
-          <table>
-            <thead><tr><th>Nombre ingrediente</th><th>Categoría</th><th>Formato Compra</th><th>Precio Neto ($)</th><th>Precio/Kg equiv.</th><th>Acciones</th></tr></thead>
-            <tbody id="ingTable"></tbody>
-          </table>
-        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Tipo</th>
+              <th>Proteina</th>
+              <th>Unidad</th>
+              <th>Formato</th>
+              <th>Precio neto</th>
+              <th>Accion</th>
+            </tr>
+          </thead>
+          <tbody id="proteinas-tb"></tbody>
+        </table>
       </div>
     </div>
-
-    <!-- CIF -->
-    <div class="tab-content" id="tab-cif">
-      <div class="section-title">Costos Indirectos de Fabricación</div>
-      <div class="section-sub">El total se distribuye en partes iguales entre los productos activos.</div>
-      <div class="card" style="margin-bottom:20px;">
-        <div style="font-weight:600;font-size:14px;margin-bottom:14px;color:var(--cocoa)">+ Agregar ítem CIF</div>
-        <div class="form-row">
-          <div class="form-group"><label>Descripción</label><input type="text" id="newCifNombre" placeholder="Ej: Arriendo, gas, luz..."></div>
-          <div class="form-group"><label>Categoría</label>
-            <select id="newCifCat"><option>Servicios básicos</option><option>Arriendo</option><option>Insumos limpieza</option><option>Mantención equipos</option><option>Depreciación</option><option>Seguros</option><option>Otro</option></select>
-          </div>
-          <div class="form-group"><label>Monto mensual ($)</label><input type="text" inputmode="decimal" id="newCifMonto" placeholder="Ej: 150.000"></div>
-          <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="addCIF()">Agregar</button></div>
-        </div>
-      </div>
-      <div class="card" style="margin-bottom:20px;">
-        <div class="tbl-wrap">
-          <table><thead><tr><th>Descripción</th><th>Categoría</th><th>Monto Mensual</th><th>Acción</th></tr></thead>
-          <tbody id="cifTable"></tbody></table>
-        </div>
-        <div id="cifTotal" style="margin-top:16px;text-align:right;font-size:14px;font-weight:600;color:var(--cocoa)"></div>
-      </div>
-      <div class="card" style="background:var(--warm-white)">
-        <div style="font-size:13px;color:var(--text-light);margin-bottom:8px">Distribución CIF</div>
-        <div id="cifDistResult" style="font-size:14px;font-weight:600;color:var(--cocoa)"></div>
-      </div>
     </div>
 
-    <!-- PACKAGING -->
-    <div class="tab-content" id="tab-packaging">
-      <div class="section-title">Packaging · Envases</div>
-      <div class="section-sub">Costos de envase y empaque por producto.</div>
-      <div class="card" style="margin-bottom:20px;">
-        <div style="font-weight:600;font-size:14px;margin-bottom:14px;color:var(--cocoa)">+ Agregar envase</div>
-        <div class="form-row">
-          <div class="form-group"><label>Nombre envase</label><input type="text" id="newPkgNombre" placeholder="Ej: Caja kraft individual"></div>
-          <div class="form-group"><label>Producto asociado</label><select id="newPkgProd"><option value="todos">Todos los productos</option></select></div>
-          <div class="form-group"><label>Precio unit. ($)</label><input type="text" inputmode="decimal" id="newPkgPrecio" placeholder="Ej: 1.500"></div>
-          <div class="form-group"><label>Cantidad</label><input type="number" id="newPkgCant" min="1" value="1"></div>
-          <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="addPackaging()">Agregar</button></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="tbl-wrap">
-          <table><thead><tr><th>Envase</th><th>Producto</th><th>P. Unit.</th><th>Cantidad</th><th>Costo Total</th><th>Acción</th></tr></thead>
-          <tbody id="pkgTable"></tbody></table>
-        </div>
-      </div>
+  </main>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="nb-dashboard" onclick="goTab('dashboard',this)">
+      <span class="ni">📊</span>Dashboard
+    </button>
+    <button class="nav-btn" id="nb-movimientos" onclick="goTab('movimientos',this)">
+      <span class="ni">↕️</span>Movimientos
+    </button>
+    <button class="nav-btn" id="nb-stock" onclick="goTab('stock',this)">
+      <span class="ni">📦</span>Stock
+    </button>
+    <button class="nav-btn" id="nb-proteinas" onclick="goTab('proteinas',this)">
+      <span class="ni">🥩</span>Proteinas
+    </button>
+  </nav>
+</div>
+
+<!-- MODAL MOVIMIENTO -->
+<div class="overlay" id="ov-mov" onclick="if(event.target===this)closeMov()">
+  <div class="modal">
+    <div class="modal-title"><span id="mov-icon">📥</span><span id="mov-ttl">Registrar entrada</span></div>
+
+    <label>Proteina</label>
+    <select id="mov-proteina" onchange="onProteinaChange()">
+      <option value="">Seleccionar proteina...</option>
+      <option value="prot-salmon">Salmon</option>
+      <option value="prot-pollo">Pollo</option>
+      <option value="prot-jaiba">Jaiba</option>
+      <option value="prot-tocino">Tocino</option>
+      <option value="prot-camaron">Camaron</option>
+      <option value="prot-pulpo">Pulpo</option>
+      <option value="prot-carne">Carne</option>
+    </select>
+
+    <label>Producto</label>
+    <select id="mov-prod" onchange="onProductChange()" disabled>
+      <option value="">Primero selecciona proteina</option>
+    </select>
+
+
+
+    <div id="mov-single">
+      <label>Cantidad <span id="mov-unit-lbl" style="color:var(--blue-600);font-weight:700">(kg)</span></label>
+      <input type="number" id="mov-qty" min="0.01" step="0.01" placeholder="0.00">
     </div>
 
-    <!-- MOD -->
-    <div class="tab-content" id="tab-mod">
-      <div class="section-title">Mano de Obra Directa</div>
-      <div class="section-sub">Personal directo de producción y asignación de horas por producto.</div>
-      <div class="card" style="margin-bottom:20px;">
-        <div style="font-weight:600;font-size:14px;margin-bottom:14px;color:var(--cocoa)">+ Agregar trabajador / costo MOD</div>
-        <div class="form-row">
-          <div class="form-group"><label>Nombre / Cargo</label><input type="text" id="newModNombre" placeholder="Ej: Pastelera principal"></div>
-          <div class="form-group"><label>Tipo</label>
-            <select id="newModTipo"><option>Sueldo mensual</option><option>Por hora</option><option>Por lote</option></select>
-          </div>
-          <div class="form-group"><label>Monto ($)</label><input type="text" inputmode="decimal" id="newModMonto" placeholder="Ej: 650.000"></div>
-          <div class="form-group"><label>Horas/mes</label><input type="number" id="newModHoras" min="0" placeholder="160"></div>
-          <div class="form-group" style="justify-content:flex-end"><button class="btn btn-primary" onclick="addMOD()">Agregar</button></div>
-        </div>
+    <div id="mov-dual" style="display:none">
+      <div style="background:var(--blue-100);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--blue-700);margin-top:10px;margin-bottom:4px">
+        Este producto registra <strong>unidades</strong> y <strong>kg totales</strong> por separado
       </div>
-      <div class="card" style="margin-bottom:20px;">
-        <div class="tbl-wrap">
-          <table><thead><tr><th>Nombre / Cargo</th><th>Tipo</th><th>Monto</th><th>Horas/mes</th><th>Costo/hora</th><th>Acción</th></tr></thead>
-          <tbody id="modTable"></tbody></table>
-        </div>
-        <div id="modTotal" style="margin-top:16px;text-align:right;font-size:14px;font-weight:600;color:var(--cocoa)"></div>
-      </div>
-      <div class="card" style="background:var(--warm-white)">
-        <div style="font-size:13px;color:var(--text-light);margin-bottom:12px;font-weight:600">Horas MOD por producto</div>
-        <div class="alert alert-info">💡 Ingresa cuántas horas de trabajo directo requiere producir una unidad de cada producto.</div>
-        <div class="tbl-wrap">
-          <table><thead><tr><th>Producto</th><th>Horas MOD por unidad</th><th>Costo MOD/unidad</th></tr></thead>
-          <tbody id="modProdTable"></tbody></table>
-        </div>
-      </div>
+      <label>Cantidad (unidades)</label>
+      <input type="number" id="mov-qty-u" min="1" step="1" placeholder="Numero de unidades">
+      <label>Peso total (kg)</label>
+      <input type="number" id="mov-qty-kg" min="0.01" step="0.01" placeholder="Peso total en kg">
     </div>
 
-    <!-- CALCULADORA -->
-    <div class="tab-content" id="tab-calculadora">
-      <div class="section-title">Calculadora de Producción</div>
-      <div class="section-sub">Ingresa producto y cantidad para obtener la lista exacta de ingredientes necesarios.</div>
-      <div class="calc-box">
-        <div class="form-row" style="margin-bottom:20px">
-          <div class="form-group"><label>Producto</label><select id="calcProd"></select></div>
-          <div class="form-group" style="max-width:160px"><label>Lotes a producir</label><input type="number" id="calcCantidad" value="1" min="1"></div>
-          <div class="form-group" style="justify-content:flex-end"><button class="btn btn-gold" onclick="calcular()">Calcular 🧮</button></div>
-        </div>
-        <div id="calcResult"></div>
-      </div>
+    <div id="mov-tipo-salida-wrap" style="display:none">
+      <label>Tipo de salida</label>
+      <select id="mov-tipo-salida">
+        <option value="merma">Merma</option>
+        <option value="produccion">Produccion</option>
+      </select>
     </div>
 
-    <!-- RECETAS -->
-    <div class="tab-content" id="tab-recetas">
-      <div class="section-title">Gestión de Recetas</div>
-      <div class="section-sub">Edita cualquier receta — tanto las del Excel como las nuevas. Los cambios se guardan en la nube y se sincronizan al instante.</div>
+    <label id="mov-plbl">Precio neto unitario <span id="mov-price-ref" style="font-size:11px;color:var(--blue-600)"></span></label>
+    <input type="number" id="mov-price" min="0" step="1" placeholder="0">
 
-      <!-- FORM NUEVA / EDITAR RECETA -->
-      <div class="card" style="margin-bottom:24px;" id="recipeFormCard">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
-          <div id="recipeFormTitle" style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:var(--cocoa)">+ Nueva receta</div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-primary" onclick="saveRecipe()">💾 Guardar receta</button>
-            <button class="btn" style="background:#f5f5f5;color:var(--text-light)" onclick="clearRecipeForm()">✕ Cancelar</button>
-          </div>
-        </div>
-
-        <!-- Datos básicos -->
-        <div class="form-row" style="margin-bottom:16px">
-          <div class="form-group" style="max-width:300px">
-            <label>Nombre del producto *</label>
-            <input type="text" id="rNombre" placeholder="Ej: Tarta de limón">
-          </div>
-          <div class="form-group" style="max-width:140px">
-            <label>Código</label>
-            <input type="text" id="rCodigo" placeholder="Ej: 3021">
-          </div>
-          <div class="form-group" style="max-width:140px">
-            <label>Porciones por receta</label>
-            <input type="number" id="rPorciones" min="1" placeholder="Ej: 12">
-          </div>
-        </div>
-
-        <!-- Ingredientes de la receta -->
-        <div style="font-weight:600;font-size:14px;color:var(--cocoa);margin-bottom:12px">Ingredientes</div>
-        <div id="recipeIngList"></div>
-
-        <!-- Agregar ingrediente -->
-        <div style="background:var(--warm-white);border-radius:10px;padding:16px;border:1px dashed var(--border);margin-top:4px">
-          <div style="font-size:12px;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px">+ Agregar ingrediente</div>
-          <div class="form-row" style="margin-bottom:0">
-            <div class="form-group">
-              <label>Ingrediente</label>
-              <input type="text" id="riNombre" placeholder="Ej: harina panificacion" list="ingListDL">
-              <datalist id="ingListDL"></datalist>
-            </div>
-            <div class="form-group" style="max-width:120px">
-              <label>Cantidad</label>
-              <input type="number" id="riCantidad" min="0" step="any" placeholder="0">
-            </div>
-            <div class="form-group" style="max-width:100px">
-              <label>Unidad</label>
-              <select id="riUnidad">
-                <option>g</option>
-                <option>kg</option>
-                <option>l</option>
-                <option>ml</option>
-                <option>un</option>
-              </select>
-            </div>
-            <div class="form-group" style="justify-content:flex-end;max-width:140px">
-              <button class="btn btn-gold" onclick="addIngToRecipe()">+ Agregar</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- LISTADO RECETAS PERSONALIZADAS -->
-      <div class="card">
-        <div style="font-weight:600;font-size:15px;color:var(--cocoa);margin-bottom:16px">Todas las recetas <span style="font-size:12px;color:var(--text-light);font-weight:400">— haz clic en ✏️ Editar para modificar cualquiera</span></div>
-        <div id="customRecipesList"></div>
-      </div>
+    <label>Notas</label>
+    <textarea id="mov-notes" placeholder="Opcional..."></textarea>
+    <label>Registrado por</label>
+    <input type="text" id="mov-user" placeholder="Nombre">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeMov()">Cancelar</button>
+      <button class="btn-ok" id="mov-ok" onclick="saveMov()">Confirmar</button>
     </div>
+  </div>
+</div>
 
-  </div><!-- /main -->
-</div><!-- /appShell -->
+<!-- MODAL PRECIO -->
+<div class="overlay" id="ov-precio" onclick="if(event.target===this)closePrecio()">
+  <div class="modal">
+    <div class="modal-title">💰 Editar precio neto</div>
+    <input type="hidden" id="precio-id">
+    <div id="precio-prod-name" style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:8px"></div>
+    <label>Precio neto por unidad / kg</label>
+    <input type="number" id="precio-val" min="0" step="1" placeholder="0">
+    <div style="font-size:12px;color:var(--muted);margin-top:6px">Ingresa el precio sin IVA en pesos chilenos</div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closePrecio()">Cancelar</button>
+      <button class="btn-ok bok-ven" onclick="savePrecio()">Guardar precio</button>
+    </div>
+  </div>
+</div>
 
-<script>
-  // Show setup banner if Firebase not configured
-  window.addEventListener('DOMContentLoaded', () => {
-    const cfg = document.querySelector('script[type="module"]').textContent;
-    if (cfg.includes('TU_API_KEY_AQUI')) {
-      setTimeout(() => {
-        document.getElementById('setupBanner').classList.add('visible');
-      }, 1200);
+<!-- MODAL PRODUCTO -->
+<div class="overlay" id="ov-prod" onclick="if(event.target===this)closeAddProduct()">
+  <div class="modal">
+    <div class="modal-title">📦 Nuevo producto / materia prima</div>
+    <label>Nombre</label>
+    <input type="text" id="np-name" placeholder="Ej: Salmón relleno">
+    <label>Proteína / categoría</label>
+    <select id="np-prot">
+      <option value="salmon">Salmón</option>
+      <option value="pollo">Pollo</option>
+      <option value="camaron">Camarón</option>
+      <option value="jaiba">Jaiba</option>
+      <option value="tocino">Tocino</option>
+      <option value="pulpo">Pulpo</option>
+      <option value="carne">Carne</option>
+      <option value="materia_prima">Materia prima</option>
+      <option value="otro">Otro</option>
+    </select>
+    <label>Tipo</label>
+    <select id="np-tipo">
+      <option value="Producto terminado">Producto terminado</option>
+      <option value="Materia prima">Materia prima</option>
+      <option value="Insumo">Insumo</option>
+    </select>
+    <label>Unidad de medida</label>
+    <select id="np-unit">
+      <option value="kg">kg — kilogramos</option>
+      <option value="g">g — gramos</option>
+      <option value="unidades">Unidades</option>
+      <option value="litros">Litros</option>
+      <option value="cajas">Cajas</option>
+      <option value="bolsas">Bolsas</option>
+      <option value="porciones">Porciones</option>
+    </select>
+    <label>Formato de venta</label>
+    <select id="np-fmt">
+      <option value="Granel kg">Granel kg</option>
+      <option value="Bolsas de 1 kg">Bolsas de 1 kg</option>
+      <option value="Bolsas de 2 kg">Bolsas de 2 kg</option>
+      <option value="Bolsas de 3 kg">Bolsas de 3 kg</option>
+      <option value="Caja 10 kg">Caja 10 kg</option>
+      <option value="Caja 100 kg / bolsas 1 kg">Caja 100 kg / bolsas 1 kg</option>
+      <option value="Bolsas 500 g">Bolsas 500 g</option>
+      <option value="Bolsa 10u x 50g">Bolsa 10u x 50g</option>
+      <option value="Bolsa 10u x 100g">Bolsa 10u x 100g</option>
+      <option value="Bolsa 5u x 80g">Bolsa 5u x 80g</option>
+      <option value="Bolsa 28u x 70g">Bolsa 28u x 70g</option>
+      <option value="Bolsas 10u x 350g">Bolsas 10u x 350g</option>
+      <option value="Unitario 250g">Unitario 250g</option>
+      <option value="Unidad 500g">Unidad 500g</option>
+      <option value="Bolsa 2u">Bolsa 2u</option>
+    </select>
+    <label>Stock inicial</label>
+    <input type="number" id="np-stock" min="0" value="0" step="0.01">
+    <label>Stock mínimo (alerta)</label>
+    <input type="number" id="np-min" min="0" value="10">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeAddProduct()">Cancelar</button>
+      <button class="btn-ok bok-ven" onclick="saveProduct()">Crear producto</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+
+// ─── FIREBASE REALTIME DATABASE ──────────────────────────
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js';
+import { getDatabase, ref, set, get, child, push, onValue } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBVg0mUQzQHRoMZuzzHmGUlf7gWub71shk",
+  authDomain: "inventario-produccion-eb58d.firebaseapp.com",
+  databaseURL: "https://inventario-produccion-eb58d-default-rtdb.firebaseio.com",
+  projectId: "inventario-produccion-eb58d",
+  storageBucket: "inventario-produccion-eb58d.firebasestorage.app",
+  messagingSenderId: "507160941913",
+  appId: "1:507160941913:web:67a73619495104b3c9e848"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db    = getDatabase(fbApp);
+
+async function fbSyncAll() {
+  setSpin(true);
+  try {
+    const snap = await get(ref(db));
+    if (snap.exists()) {
+      const data = snap.val();
+      if (data.products) {
+        products = Object.values(data.products);
+      }
+      if (data.movements) {
+        movements = Object.values(data.movements).sort((a,b) => b.date.localeCompare(a.date));
+      }
+      if (data.prices) {
+        localStorage.setItem('anmicoda_prices', JSON.stringify(data.prices));
+      }
+      saveLocal();
+      renderAll();
+      toast('Sincronizado ✓', 'success');
+    } else {
+      loadLocal();
+      renderAll();
+    }
+  } catch(e) {
+    console.error('Firebase error:', e);
+    loadLocal();
+    renderAll();
+    toast('Sin conexión — datos locales', 'info');
+  }
+  setSpin(false);
+}
+
+async function fbSaveMovement(mov, prods) {
+  try {
+    await set(ref(db, 'movements/' + mov.id), mov);
+    for (const p of prods) {
+      await set(ref(db, 'products/' + p.id), p);
+    }
+  } catch(e) { console.error('fbSaveMovement:', e); }
+}
+
+async function fbSaveProduct(prod) {
+  try {
+    await set(ref(db, 'products/' + prod.id), prod);
+  } catch(e) { console.error('fbSaveProduct:', e); }
+}
+
+async function fbSavePrice(id, precio) {
+  try {
+    await set(ref(db, 'prices/' + id), precio);
+  } catch(e) { console.error('fbSavePrice:', e); }
+}
+
+
+// ─── APP ─────────────────────────────────────────────────
+
+
+// ─── APP JS ──────────────────────────────────────────────
+function exportCSV() {
+  // Export movements
+  const headers = ['Fecha','Producto','Produccion','Tipo','Cantidad','Unidad','Precio','Total','Notas','Usuario'];
+  const rows = movements.map(m => {
+    const p = products.find(x=>x.id===m.pid);
+    const total = (Number(m.price||0)*Number(m.qty||0)).toFixed(0);
+    return [
+      m.date, p?p.name:m.pid, m.proc||'', m.tipo,
+      m.qty, p?p.unit:'', m.price||'', total, m.notes||'', m.user||''
+    ].map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',');
+  });
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'ANMICODA_movimientos_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click(); URL.revokeObjectURL(url);
+  toast('CSV exportado ✓','success');
+}
+
+function confirmReset() {
+  if (confirm('¿Seguro que quieres borrar TODOS los datos? Esta acción no se puede deshacer.')) {
+    localStorage.clear(); location.reload();
+  }
+}
+
+// ─── CATÁLOGO DESDE EL EXCEL ───────────────────────────────────────────
+const EXCEL_PROCESOS = {
+  'salmon relleno':  ['limpieza','corte en bastones','envasado','sellado al vacio','almacenado'],
+  'salmon ceviche':  ['limpieza','corte en cubos','envasado','sellado al vacio','almacenado'],
+  'salmon molde':    ['limpieza','corte en cuadrados','envasado','sellado al vacio','almacenado'],
+  'sashimi salmón':  ['limpieza','corte filete pequeño','envasado','sellado al vacio','almacenado'],
+  'pollo filetado':  ['limpieza','corte filete','envasado','almacenado'],
+  'pollo apanado':   ['limpieza','corte filete','apanado','envasado','almacenado'],
+  'pollo molde':     ['limpieza','armado','envasado','sellado al vacio'],
+  'pollo teriyaki':  ['cocción','corte','glaseo agridulce','envasado','sellado al vacio','almacenado'],
+  'camaron estirado':['estirado','envasado'],
+  'camaron apanado': ['estirado','apanado','almacenado'],
+  'jaiba relleno':   ['drenado','envaso','sellado al vacio','almacenado'],
+  'chupe de jaiba':  ['drenado','cocción','enfriado','envasado','sellado al vacio','almacenado'],
+  'tocino relleno':  ['envado','almacenado'],
+  'pulpo relleno':   ['limpieza','coccion','corte','envasado','sellado al vacio','almacenado'],
+  'carne relleno':   ['limpieza','corte','envasado','sellado al vacio','almacenado'],
+  'carne molde':     ['limpieza','corte','armado','envasado','sellado al vacio','congelado'],
+};
+
+const INIT_PRODUCTS = [
+  // Materias primas
+  {id:'mp1',name:'Camarón',proteina:'camaron',tipo:'Materia prima',unit:'kg',fmt:'Caja 100 kg / bolsas 1 kg',stock:0,min:50},
+  {id:'mp2',name:'Carne vacuno',proteina:'carne',tipo:'Materia prima',unit:'kg',fmt:'Bolsas 3 kg',stock:0,min:30},
+  {id:'mp3',name:'Pollo pechuga deshuesada',proteina:'pollo',tipo:'Materia prima',unit:'kg',fmt:'Caja 10 kg congelado',stock:0,min:50},
+  {id:'mp4',name:'Tocino congelado',proteina:'tocino',tipo:'Materia prima',unit:'kg',fmt:'Bolsas 500 g',stock:0,min:20},
+  {id:'mp5',name:'Pulpo congelado',proteina:'pulpo',tipo:'Materia prima',unit:'kg',fmt:'Bolsas kg',stock:0,min:15},
+  {id:'mp6',name:'Jaiba',proteina:'jaiba',tipo:'Materia prima',unit:'kg',fmt:'Bolsas 500 g',stock:0,min:25},
+  {id:'mp7',name:'Salmón sin piel',proteina:'salmon',tipo:'Materia prima',unit:'kg',fmt:'Cajas 10 kg filetes',stock:0,min:40},
+  {id:'mp8',name:'Salmón con piel',proteina:'salmon',tipo:'Materia prima',unit:'kg',fmt:'Cajas 10 kg filetes con piel',stock:0,min:30},
+  // Productos terminados
+  {id:'pt1',name:'Salmon relleno',proteina:'salmon',tipo:'Producto terminado',unit:'kg',fmt:'Bolsas de 2 kg',stock:0,min:10},
+  {id:'pt2',name:'Salmon ceviche',proteina:'salmon',tipo:'Producto terminado',unit:'kg',fmt:'Bolsa de 1 kg',stock:0,min:10},
+  {id:'pt3',name:'Salmon molde',proteina:'salmon',tipo:'Producto terminado',unit:'unidades',fmt:'Bolsas 10u × 350g',stock:0,min:20},
+  {id:'pt4',name:'Sashimi salmón',proteina:'salmon',tipo:'Producto terminado',unit:'unidades',fmt:'Unitario 250g',stock:0,min:15},
+  {id:'pt5',name:'Pollo filetado',proteina:'pollo',tipo:'Producto terminado',unit:'kg',fmt:'Granel kg',stock:0,min:10},
+  {id:'pt6',name:'Pollo apanado',proteina:'pollo',tipo:'Producto terminado',unit:'kg',fmt:'Granel kg',stock:0,min:10},
+  {id:'pt7',name:'Pollo molde',proteina:'pollo',tipo:'Producto terminado',unit:'unidades',fmt:'Unidad 500g',stock:0,min:15},
+  {id:'pt8',name:'Pollo teriyaki',proteina:'pollo',tipo:'Producto terminado',unit:'unidades',fmt:'Bolsa 28u × 70g',stock:0,min:20},
+  {id:'pt9',name:'Camaron estirado',proteina:'camaron',tipo:'Producto terminado',unit:'kg',fmt:'Granel kg',stock:0,min:10},
+  {id:'pt10',name:'Camaron apanado',proteina:'camaron',tipo:'Producto terminado',unit:'kg',fmt:'Granel kg',stock:0,min:10},
+  {id:'pt11',name:'Jaiba relleno',proteina:'jaiba',tipo:'Producto terminado',unit:'unidades',fmt:'Bolsa 10u × 50g',stock:0,min:20},
+  {id:'pt12',name:'Chupe de jaiba',proteina:'jaiba',tipo:'Producto terminado',unit:'unidades',fmt:'Bolsa 5u × 80g',stock:0,min:15},
+  {id:'pt13',name:'Tocino relleno',proteina:'tocino',tipo:'Producto terminado',unit:'unidades',fmt:'Bolsa 2u',stock:0,min:10},
+  {id:'pt14',name:'Pulpo relleno',proteina:'pulpo',tipo:'Producto terminado',unit:'unidades',fmt:'Bolsa 10u × 50g',stock:0,min:20},
+  {id:'pt15',name:'Carne relleno',proteina:'carne',tipo:'Producto terminado',unit:'unidades',fmt:'Bolsa 10u × 100g',stock:0,min:20},
+  {id:'pt16',name:'Carne molde',proteina:'carne',tipo:'Producto terminado',unit:'unidades',fmt:'Unidad 500g',stock:0,min:15},
+];
+
+
+const CATALOG = {
+  proteinas: [
+    {id:'prot-salmon',  name:'Salmon'},
+    {id:'prot-pollo',   name:'Pollo'},
+    {id:'prot-jaiba',   name:'Jaiba'},
+    {id:'prot-tocino',  name:'Tocino'},
+    {id:'prot-camaron', name:'Camaron'},
+    {id:'prot-pulpo',   name:'Pulpo'},
+    {id:'prot-carne',   name:'Carne'},
+  ],
+  productos: [
+    {id:'pt1',  proteina:'prot-salmon',  name:'Salmon relleno',    unit:'kg',       dual:false, fmt:'Bolsas de 2 kg',         tipo:'Producto terminado'},
+    {id:'pt2',  proteina:'prot-salmon',  name:'Salmon ceviche',    unit:'kg',       dual:false, fmt:'Bolsa de 1 kg',          tipo:'Producto terminado'},
+    {id:'pt3',  proteina:'prot-salmon',  name:'Salmon molde',      unit:'kg',       dual:true,  fmt:'Bolsas 10 unidades',     tipo:'Producto terminado'},
+    {id:'pt4',  proteina:'prot-salmon',  name:'Sashimi salmon',    unit:'kg',       dual:true,  fmt:'Unitario',               tipo:'Producto terminado'},
+    {id:'pt5',  proteina:'prot-pollo',   name:'Pollo filetado',    unit:'kg',       dual:false, fmt:'Granel en kg',           tipo:'Producto terminado'},
+    {id:'pt6',  proteina:'prot-pollo',   name:'Pollo apanado',     unit:'kg',       dual:false, fmt:'Granel en kg',           tipo:'Producto terminado'},
+    {id:'pt7',  proteina:'prot-pollo',   name:'Pollo molde',       unit:'unidades', dual:false, fmt:'Unidad 500g',            tipo:'Producto terminado'},
+    {id:'pt8',  proteina:'prot-pollo',   name:'Pollo teriyaki',    unit:'unidades', dual:false, fmt:'Bolsa 28 unidades',      tipo:'Producto terminado'},
+    {id:'pt9',  proteina:'prot-camaron', name:'Camaron estirado',  unit:'kg',       dual:false, fmt:'Granel en kg',           tipo:'Producto terminado'},
+    {id:'pt10', proteina:'prot-camaron', name:'Camaron apanado',   unit:'kg',       dual:false, fmt:'Granel en kg',           tipo:'Producto terminado'},
+    {id:'pt11', proteina:'prot-jaiba',   name:'Jaiba relleno',     unit:'unidades', dual:false, fmt:'Bolsa 10 unidades',      tipo:'Producto terminado'},
+    {id:'pt12', proteina:'prot-jaiba',   name:'Chupe de jaiba',    unit:'unidades', dual:false, fmt:'Bolsa 5 unidades',       tipo:'Producto terminado'},
+    {id:'pt13', proteina:'prot-tocino',  name:'Tocino relleno',    unit:'unidades', dual:false, fmt:'Bolsa 2 unidades',       tipo:'Producto terminado'},
+    {id:'pt14', proteina:'prot-pulpo',   name:'Pulpo relleno',     unit:'unidades', dual:false, fmt:'Bolsa 10 unidades',      tipo:'Producto terminado'},
+    {id:'pt15', proteina:'prot-carne',   name:'Carne relleno',     unit:'unidades', dual:false, fmt:'Bolsa 10 unidades',      tipo:'Producto terminado'},
+    {id:'pt16', proteina:'prot-carne',   name:'Carne molde',       unit:'unidades', dual:false, fmt:'Unidad 500g',            tipo:'Producto terminado'},
+    {id:'mp1',  proteina:'prot-camaron', name:'Camaron',           unit:'kg',       dual:false, fmt:'Caja 100kg / bolsas 1kg',tipo:'Materia prima'},
+    {id:'mp2',  proteina:'prot-carne',   name:'Carne vacuno',      unit:'kg',       dual:false, fmt:'Bolsas de 3 kg',         tipo:'Materia prima'},
+    {id:'mp3',  proteina:'prot-pollo',   name:'Pollo pechuga',     unit:'kg',       dual:false, fmt:'Caja 10 kg congelado',   tipo:'Materia prima'},
+    {id:'mp4',  proteina:'prot-tocino',  name:'Tocino congelado',  unit:'kg',       dual:false, fmt:'Bolsas 500g',            tipo:'Materia prima'},
+    {id:'mp5',  proteina:'prot-pulpo',   name:'Pulpo congelado',   unit:'kg',       dual:false, fmt:'Bolsas de kg',           tipo:'Materia prima'},
+    {id:'mp6',  proteina:'prot-jaiba',   name:'Jaiba',             unit:'kg',       dual:false, fmt:'Bolsas 500g',            tipo:'Materia prima'},
+    {id:'mp7',  proteina:'prot-salmon',  name:'Salmon sin piel',   unit:'kg',       dual:false, fmt:'Cajas 10kg filetes',     tipo:'Materia prima'},
+    {id:'mp8',  proteina:'prot-salmon',  name:'Salmon con piel',   unit:'kg',       dual:false, fmt:'Cajas 10kg con piel',    tipo:'Materia prima'},
+  ]
+};
+
+// Load/save prices from localStorage
+function loadPrices() {
+  try { return JSON.parse(localStorage.getItem('anmicoda_prices') || '{}'); } catch { return {}; }
+}
+function savePrice(id, precio) {
+  const p = loadPrices(); p[id] = Number(precio);
+  localStorage.setItem('anmicoda_prices', JSON.stringify(p));
+}
+function getPrice(id) { return loadPrices()[id] || 0; }
+
+// ─── STATE ─────────────────────────────────────────────────────────────
+let GAS_URL = '', IS_DEMO = false;
+let products = [], movements = [];
+let curMovType = 'entrada';
+let lastUser = localStorage.getItem('lastUser') || '';
+const _charts = {};
+
+// ─── SETUP ─────────────────────────────────────────────────────────────
+function doSetup() {
+  const url = document.getElementById('inp-url').value.trim();
+  const biz = document.getElementById('inp-biz').value.trim() || 'Mi Empresa';
+  if (!url) { toast('Ingresa la URL del Apps Script','error'); return; }
+  GAS_URL = url;
+  ls('gasUrl', url); ls('bizName', biz);
+  launch(biz);
+}
+function doDemo() {
+  IS_DEMO = true;
+  const biz = document.getElementById('inp-biz').value.trim() || 'ANMICODA';
+  ls('demoMode','1'); ls('bizName', biz);
+  buildDemoData(); launch(biz);
+}
+function launch(biz) {
+  document.getElementById('setup-overlay').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('biz-name').textContent = biz || 'ANMICODA';
+  renderAll();
+}
+function resetApp() { localStorage.clear(); location.reload(); }
+
+// ─── DEMO DATA ─────────────────────────────────────────────────────────
+function buildDemoData() {
+  products = INIT_PRODUCTS.map(p => ({
+    ...p, stock: Math.round(Math.random()*120 + 5)
+  }));
+  const now = new Date();
+  const fmt = d => d.toISOString().slice(0,16).replace('T',' ');
+  const users = ['Ana','Carlos','María','Luis'];
+  const tipos = ['entrada','venta','merma','merma','salida','entrada','venta','merma'];
+  movements = [];
+  for (let i = 0; i < 60; i++) {
+    const d = new Date(now); d.setDate(now.getDate() - Math.floor(Math.random()*21));
+    const p  = products[Math.floor(Math.random()*products.length)];
+    const tipo = tipos[Math.floor(Math.random()*tipos.length)];
+    const procList = EXCEL_PROCESOS[p.name.toLowerCase()] || ['general'];
+    const proc = procList[Math.floor(Math.random()*procList.length)];
+    movements.push({
+      id:'mv'+i, date:fmt(d), pid:p.id, proc, tipo,
+      qty:+(Math.random()*18+0.5).toFixed(1),
+      price: tipo==='venta' ? Math.floor(Math.random()*4000+500) : 0,
+      notes: tipo==='merma' ? `Merma en ${proc}` : '',
+      user: users[Math.floor(Math.random()*4)]
+    });
+  }
+  saveLocal();
+}
+
+function saveLocal() {
+  ls('products', JSON.stringify(products));
+  ls('movements', JSON.stringify(movements));
+}
+function loadLocal() {
+  try {
+    products  = JSON.parse(localStorage.getItem('products')  || 'null') || [];
+    movements = JSON.parse(localStorage.getItem('movements') || 'null') || [];
+  } catch { products=[]; movements=[]; }
+}
+function ls(k,v) { localStorage.setItem(k,v); }
+
+window.addEventListener('load', () => {
+  document.getElementById('mov-user').value = lastUser;
+  loadLocal();
+  launch('ANMICODA');
+});
+
+// ─── SYNC ──────────────────────────────────────────────────────────────
+async function syncAll() {
+  loadLocal(); renderAll();
+  fbSyncAll();
+}
+async function push(action, payload) {
+  saveLocal();
+  if (action === 'addMovement') fbSaveMovement(payload.movement, payload.products);
+  if (action === 'addProduct')  fbSaveProduct(payload.product);
+  return {ok:true};
+}
+function setSpin(v) { document.getElementById('sdot').className='sdot'+(v?' spin':''); }
+
+// ─── PROTEINAS & PRECIOS ─────────────────────────────
+function renderProteinas() {
+  var tb0 = document.getElementById("proteinas-tb"); if(tb0) tb0.innerHTML="";
+  var pf = document.getElementById('prot-filter') ? document.getElementById('prot-filter').value : '';
+  var tf = document.getElementById('tipo-filter') ? document.getElementById('tipo-filter').value : '';
+  var prices = loadPrices();
+  var list = CATALOG.productos;
+  if (pf) list = list.filter(function(p){ return p.proteina === pf; });
+  if (tf) list = list.filter(function(p){ return p.tipo === tf; });
+  var tb = document.getElementById('proteinas-tb');
+  if (!tb) return;
+  var protName = {
+    'prot-salmon':'Salmon','prot-pollo':'Pollo','prot-jaiba':'Jaiba',
+    'prot-tocino':'Tocino','prot-camaron':'Camaron','prot-pulpo':'Pulpo','prot-carne':'Carne'
+  };
+  var tipoCls = {'Producto terminado':'b-blue','Materia prima':'b-green'};
+  if (list.length === 0) {
+    tb.innerHTML = '<tr><td colspan="7" class="empty">Sin productos</td></tr>';
+    return;
+  }
+  var rows = '';
+  for (var i=0; i<list.length; i++) {
+    var p = list[i];
+    var precio = prices[p.id] || 0;
+    var precioFmt = precio > 0 ? '$'+precio.toLocaleString('es-CL') : '<em style="color:var(--muted)">Sin precio</em>';
+    var badgeCls = tipoCls[p.tipo] || 'b-blue';
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td style="font-weight:600">' + p.name + '</td>' +
+      '<td><span class="badge ' + badgeCls + '">' + p.tipo + '</span></td>' +
+      '<td style="color:var(--muted)">' + (protName[p.proteina]||p.proteina) + '</td>' +
+      '<td style="color:var(--muted)">' + p.unit + '</td>' +
+      '<td style="font-size:12px;color:var(--muted)">' + p.fmt + '</td>' +
+      '<td style="font-weight:700;color:var(--blue-600)">' + precioFmt + '</td>' +
+      '<td></td>';
+    var btn = document.createElement('button');
+    btn.className = 'btn-sm';
+    btn.style.fontSize = '12px';
+    btn.textContent = 'Editar precio';
+    btn.setAttribute('data-pid', p.id);
+    btn.addEventListener('click', function(){ editPrecio(this.getAttribute('data-pid')); });
+    tr.cells[6].appendChild(btn);
+    tb.appendChild(tr);
+  }
+}
+
+function editPrecio(id) {
+  const prod = CATALOG.productos.find(function(p){ return p.id === id; });
+  if (!prod) return;
+  document.getElementById('precio-id').value = id;
+  document.getElementById('precio-prod-name').textContent = prod.name + ' — ' + prod.fmt + ' (' + prod.unit + ')';
+  document.getElementById('precio-val').value = getPrice(id) || '';
+  document.getElementById('ov-precio').classList.add('open');
+}
+function closePrecio() { document.getElementById('ov-precio').classList.remove('open'); }
+function savePrecio() {
+  const id  = document.getElementById('precio-id').value;
+  const val = Number(document.getElementById('precio-val').value);
+  if (!val || val < 0) { toast('Ingresa un precio valido','error'); return; }
+  savePrice(id, val);
+  fbSavePrice(id, val);
+  closePrecio();
+  renderProteinas();
+  toast('Precio actualizado ✓','success');
+}
+
+function onProteinaChange() {
+  const prot = document.getElementById('mov-proteina').value;
+  const prodSel = document.getElementById('mov-prod');
+  const ref = document.getElementById('mov-price-ref');
+  if (!prot) {
+    prodSel.innerHTML = '<option value="">Primero selecciona proteina</option>';
+    prodSel.disabled = true;
+    return;
+  }
+  const prods = CATALOG.productos.filter(function(p){ return p.proteina === prot; });
+  prodSel.innerHTML = prods.map(function(p){
+    return '<option value="'+p.id+'" data-unit="'+p.unit+'" data-dual="'+(p.dual?'1':'0')+'">'+p.name+(p.dual?' (unidades + kg)':' ('+p.unit+')')+'</option>';
+  }).join('');
+  prodSel.disabled = false;
+  onProductChange();
+}
+
+function onProductChange() {
+  const sel = document.getElementById('mov-prod');
+  if (!sel) return;
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt || !opt.value) return;
+  const isDual = opt.dataset.dual === '1';
+  const unit   = opt.dataset.unit || 'kg';
+  document.getElementById('mov-dual').style.display   = isDual ? 'block' : 'none';
+  document.getElementById('mov-single').style.display = isDual ? 'none'  : 'block';
+  document.getElementById('mov-unit-lbl').textContent = '('+unit+')';
+  const precio = getPrice(opt.value);
+  const ref = document.getElementById('mov-price-ref');
+  if (precio > 0) {
+    ref.textContent = '— ref: $'+precio.toLocaleString('es-CL');
+    document.getElementById('mov-price').value = precio;
+  } else {
+    ref.textContent = '';
+    document.getElementById('mov-price').value = '';
+  }
+}
+
+
+// ─── RENDER ALL ────────────────────────────────────────────────────────
+function renderAll() {
+  renderDash();
+  renderMovs();
+  renderStock();
+  fillProdSelects();
+  renderProteinas();
+}
+
+// ─── DASHBOARD ─────────────────────────────────────────────────────────
+function renderDash() {
+  const ym    = new Date().toISOString().slice(0,7);
+  const today = new Date().toISOString().slice(0,10);
+  const mermas  = movements.filter(m => m.tipo==='merma');
+  const mermaM  = mermas.filter(m => m.date.startsWith(ym));
+  const ventasM = movements.filter(m => m.tipo==='venta' && m.date.startsWith(ym));
+  const low     = products.filter(p => p.stock <= p.min);
+
+  document.getElementById('k-prod').textContent = products.length;
+  document.getElementById('k-vent').textContent = ventasM.reduce((a,m)=>a+Number(m.qty),0).toFixed(1);
+  document.getElementById('k-merm').textContent = mermaM.reduce((a,m)=>a+Number(m.qty),0).toFixed(1);
+  document.getElementById('k-crit').textContent = low.length;
+  document.getElementById('k-crit2').textContent = low.length;
+
+  // Critical stock list
+  const cl = document.getElementById('crit-list');
+  cl.innerHTML = low.length === 0
+    ? '<div class="empty" style="padding:20px">✅ Sin alertas de stock</div>'
+    : low.slice(0,6).map(p => {
+        const pct = p.min>0 ? Math.round((p.stock/p.min)*100) : 100;
+        const cls = p.stock===0||pct<30 ? 'b-red' : 'b-amber';
+        const lbl = p.stock===0 ? 'Agotado' : 'Bajo';
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--surface2)">
+          <div>
+            <div style="font-size:13px;font-weight:500">${p.name}</div>
+            <div style="font-size:11px;color:var(--muted)">${p.proteina||p.tipo} · mín ${p.min} ${p.unit}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-weight:700;color:var(--red-600)">${p.stock} ${p.unit}</span>
+            <span class="badge ${cls}">${lbl}</span>
+          </div>
+        </div>`;
+      }).join('');
+
+  // Recent movements
+  const recents = [...movements].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,7);
+  const pillCls = {entrada:'pill-ent',venta:'pill-ven',salida:'pill-sal',merma:'pill-mer'};
+  const pillLbl = {entrada:'Entrada',venta:'Venta',salida:'Salida',merma:'Merma'};
+  document.getElementById('recent-tb').innerHTML = recents.map(m => {
+    const p = products.find(x=>x.id===m.pid);
+    return `<tr>
+      <td style="font-weight:500">${p ? p.name : m.pid}</td>
+      <td><span class="pill ${pillCls[m.tipo]}">${pillLbl[m.tipo]}</span></td>
+      <td style="color:var(--muted);font-size:12px">${m.proc||'—'}</td>
+      <td style="font-weight:600">${m.qty} ${p?p.unit:''}</td>
+      <td style="color:var(--muted);font-size:11px">${m.date.slice(0,10)}</td>
+      <td style="color:var(--muted);font-size:12px">${m.user||'—'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" class="empty" style="padding:20px">Sin movimientos</td></tr>';
+
+  drawCharts(mermas, ventasM, ym, today);
+}
+
+// ─── CHARTS ────────────────────────────────────────────────────────────
+const COLORS = ['#3b82f6','#22d3ee','#34d399','#fbbf24','#f87171','#a78bfa','#fb923c','#e879f9'];
+
+function mkChart(id, type, labels, datasets, extraOpts={}) {
+  if (_charts[id]) _charts[id].destroy();
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  _charts[id] = new Chart(ctx, {
+    type,
+    data: {labels, datasets},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: type==='doughnut' || datasets.length>1,
+          position: 'bottom',
+          labels: {boxWidth:10, font:{size:10}, color:'#6b90b8', padding:8}
+        },
+        tooltip: {
+          backgroundColor:'#fff', titleColor:'#1e3a5f',
+          bodyColor:'#6b90b8', borderColor:'#bdd9f5', borderWidth:1
+        }
+      },
+      scales: type==='doughnut' ? {} : {
+        x: {grid:{color:'rgba(189,217,245,.4)'},ticks:{color:'#6b90b8',font:{size:10}}},
+        y: {grid:{color:'rgba(189,217,245,.4)'},ticks:{color:'#6b90b8',font:{size:10}}}
+      },
+      ...extraOpts
     }
   });
-</script>
+}
 
+function drawCharts(mermas, ventasM, ym, today) {
+  // 1. Merma por proteína
+  const byProt = {};
+  mermas.forEach(m => {
+    const p = products.find(x=>x.id===m.pid);
+    const prot = p ? (p.proteina||'otro') : 'otro';
+    byProt[prot] = (byProt[prot]||0) + Number(m.qty);
+  });
+  const protK = Object.keys(byProt);
+  mkChart('ch-prot','bar',protK,[{
+    label:'kg merma', data:Object.values(byProt),
+    backgroundColor: COLORS.slice(0,protK.length).map(c=>c+'33'),
+    borderColor: COLORS.slice(0,protK.length), borderWidth:2, borderRadius:5
+  }], {indexAxis:'y'});
+
+  // 2. Merma por etapa
+  const byEtapa = {};
+  mermas.forEach(m => {
+    const e = m.proc||'general';
+    byEtapa[e] = (byEtapa[e]||0) + Number(m.qty);
+  });
+  const totE = Object.values(byEtapa).reduce((a,b)=>a+b,0)||1;
+  const etapaK = Object.keys(byEtapa);
+  mkChart('ch-etapa','doughnut',etapaK,[{
+    data: Object.values(byEtapa).map(v=>+((v/totE)*100).toFixed(1)),
+    backgroundColor: COLORS.slice(0,etapaK.length).map(c=>c+'cc'),
+    borderWidth:2, borderColor:'#fff'
+  }]);
+
+  // 3. Top productos con más merma
+  const byProd = {};
+  mermas.forEach(m => {
+    const p = products.find(x=>x.id===m.pid);
+    const n = p ? p.name : m.pid;
+    byProd[n] = (byProd[n]||0) + Number(m.qty);
+  });
+  const topProd = Object.entries(byProd).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  mkChart('ch-top-prod','bar',topProd.map(x=>x[0].slice(0,12)),[{
+    label:'kg merma', data:topProd.map(x=>x[1]),
+    backgroundColor:'#fbbf2433', borderColor:'#d97706', borderWidth:2, borderRadius:5
+  }]);
+
+  // 4. Merma vs ventas del mes
+  const mermaTot = mermas.filter(m=>m.date.startsWith(ym)).reduce((a,m)=>a+Number(m.qty),0);
+  const ventaTot = ventasM.reduce((a,m)=>a+Number(m.qty),0);
+  mkChart('ch-mv','doughnut',['Ventas','Merma'],[{
+    data:[+ventaTot.toFixed(1), +mermaTot.toFixed(1)],
+    backgroundColor:['#3b82f633','#f8717133'],
+    borderColor:['#3b82f6','#dc2626'], borderWidth:2
+  }]);
+
+  // 5. Tendencia diaria de mermas (últimos 14 días)
+  const days14=[], vals14=[];
+  const nowD = new Date();
+  for(let i=13;i>=0;i--) {
+    const d=new Date(nowD); d.setDate(nowD.getDate()-i);
+    const ds=d.toISOString().slice(0,10);
+    days14.push(ds.slice(5));
+    vals14.push(mermas.filter(m=>m.date.startsWith(ds)).reduce((a,m)=>a+Number(m.qty),0));
+  }
+  mkChart('ch-trend','line',days14,[{
+    label:'Merma kg', data:vals14,
+    borderColor:'#f87171', backgroundColor:'rgba(248,113,113,.1)',
+    borderWidth:2, fill:true, tension:.35, pointRadius:2, pointHoverRadius:5
+  }]);
+
+  // 6. Movimientos semana
+  const dayNames=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const semL=[],entD=[],venD=[],merD=[];
+  for(let i=6;i>=0;i--) {
+    const d=new Date(nowD); d.setDate(nowD.getDate()-i);
+    const ds=d.toISOString().slice(0,10);
+    semL.push(dayNames[d.getDay()]);
+    entD.push(movements.filter(m=>m.tipo==='entrada'&&m.date.startsWith(ds)).reduce((a,m)=>a+Number(m.qty),0));
+    venD.push(movements.filter(m=>m.tipo==='venta'  &&m.date.startsWith(ds)).reduce((a,m)=>a+Number(m.qty),0));
+    merD.push(movements.filter(m=>m.tipo==='merma'  &&m.date.startsWith(ds)).reduce((a,m)=>a+Number(m.qty),0));
+  }
+  mkChart('ch-semana','bar',semL,[
+    {label:'Entradas',data:entD,backgroundColor:'#34d39933',borderColor:'#059669',borderWidth:2,borderRadius:4},
+    {label:'Ventas',  data:venD,backgroundColor:'#3b82f633',borderColor:'#2563eb',borderWidth:2,borderRadius:4},
+    {label:'Mermas',  data:merD,backgroundColor:'#f8717133',borderColor:'#dc2626',borderWidth:2,borderRadius:4},
+  ]);
+}
+
+// ─── MOVIMIENTOS ───────────────────────────────────────────────────────
+function renderMovs() {
+  const tf = document.getElementById('f-type').value;
+  const pf = document.getElementById('f-prod').value;
+  const df = document.getElementById('f-date').value;
+  let list = [...movements].sort((a,b)=>b.date.localeCompare(a.date));
+  if (tf) list = list.filter(m=>m.tipo===tf);
+  if (pf) list = list.filter(m=>m.pid===pf);
+  if (df) list = list.filter(m=>m.date.startsWith(df));
+
+  const tb = document.getElementById('movs-tb');
+  const em = document.getElementById('movs-empty');
+  if (!list.length) { tb.innerHTML=''; em.style.display='block'; return; }
+  em.style.display='none';
+  const pc={'entrada':'pill-ent','venta':'pill-ven','salida':'pill-sal','merma':'pill-mer','produccion':'pill-mer'};
+  const pl={'entrada':'Entrada','venta':'Venta','salida':'Salida','merma':'Merma','produccion':'Produccion'};
+  tb.innerHTML = list.map(m => {
+    const p = products.find(x=>x.id===m.pid);
+    const tot = (Number(m.price||0)*Number(m.qty||0)).toLocaleString('es-CL');
+    return `<tr>
+      <td style="font-size:11px;color:var(--muted)">${m.date.slice(0,16)}</td>
+      <td style="font-weight:500">${m.pname || (p?p.name:m.pid)}</td>
+      <td style="font-size:12px;color:var(--muted)">${m.proc||'—'}</td>
+      <td><span class="pill ${pc[m.tipo]}">${pl[m.tipo]}</span></td>
+      <td style="font-weight:600">${m.qty} ${p?p.unit:''}</td>
+      <td style="color:var(--muted)">${m.price?'$'+Number(m.price).toLocaleString('es-CL'):'—'}</td>
+      <td>${m.price?'$'+tot:'—'}</td>
+      <td style="color:var(--muted);font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.notes||'—'}</td>
+      <td style="color:var(--muted);font-size:12px">${m.user||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+function clearF() {
+  ['f-type','f-prod','f-date'].forEach(id=>document.getElementById(id).value='');
+  renderMovs();
+}
+
+// ─── STOCK ─────────────────────────────────────────────────────────────
+function renderStock(search='') {
+  const grid = document.getElementById('stock-grid');
+  const em   = document.getElementById('stock-empty');
+  let list = search
+    ? products.filter(p=>p.name.toLowerCase().includes(search.toLowerCase())||(p.proteina||'').includes(search.toLowerCase()))
+    : products;
+  if (!list.length) { grid.innerHTML=''; em.style.display='block'; return; }
+  em.style.display='none';
+  grid.innerHTML = list.map(p => {
+    const pct = p.min>0 ? Math.min(100,Math.round((p.stock/p.min)*100)) : 100;
+    const isCrit = p.stock===0 || pct<50;
+    const isLow  = pct<100;
+    const col = isCrit ? '#dc2626' : (isLow ? '#d97706' : '#059669');
+    const dcls= isCrit ? 'd-crit' : (isLow ? 'd-low' : 'd-ok');
+    return `<div class="sc">
+      <div class="sdot2 ${dcls}"></div>
+      <div class="sc-name">${p.name}</div>
+      <div class="sc-cat">${p.tipo||''} · ${p.proteina||''}</div>
+      <div class="sc-qty" style="color:${col}">${p.stock} <span style="font-size:13px;font-weight:400;color:var(--muted)">${p.unit}</span></div>
+      <div class="sc-bar-bg"><div class="sc-bar" style="width:${pct}%;background:${col}"></div></div>
+      <div class="sc-foot"><span>0</span><span>Mín: ${p.min}</span></div>
+    </div>`;
+  }).join('');
+}
+
+// ─── SELECTS ───────────────────────────────────────────────────────────
+function fillProdSelects() {
+  // mov-prod is now static HTML with all products
+  // Only update the filter select
+  const allProds = [
+    {id:'pt1',name:'Salmón relleno'},{id:'pt2',name:'Salmón ceviche'},
+    {id:'pt3',name:'Salmón molde'},{id:'pt4',name:'Sashimi salmón'},
+    {id:'pt5',name:'Pollo filetado'},{id:'pt6',name:'Pollo apanado'},
+    {id:'pt7',name:'Pollo molde'},{id:'pt8',name:'Pollo teriyaki'},
+    {id:'pt9',name:'Camarón estirado'},{id:'pt10',name:'Camarón apanado'},
+    {id:'pt11',name:'Jaiba relleno'},{id:'pt12',name:'Chupe de jaiba'},
+    {id:'pt13',name:'Tocino relleno'},{id:'pt14',name:'Pulpo relleno'},
+    {id:'pt15',name:'Carne relleno'},{id:'pt16',name:'Carne molde'},
+    {id:'mp1',name:'Camarón (MP)'},{id:'mp2',name:'Carne vacuno (MP)'},
+    {id:'mp3',name:'Pollo pechuga (MP)'},{id:'mp4',name:'Tocino (MP)'},
+    {id:'mp5',name:'Pulpo (MP)'},{id:'mp6',name:'Jaiba (MP)'},
+    {id:'mp7',name:'Salmón sin piel (MP)'},{id:'mp8',name:'Salmón con piel (MP)'}
+  ];
+  document.getElementById('f-prod').innerHTML = '<option value="">Todos</option>' +
+    allProds.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  onProductChange();
+}
+function updateProcesos() {
+  const pid  = document.getElementById('mov-prod').value;
+  const p    = products.find(x=>x.id===pid);
+  const key  = p ? p.name.toLowerCase() : '';
+  const list = EXCEL_PROCESOS[key] || ['general','limpieza','envasado','almacenado'];
+  document.getElementById('mov-proc').innerHTML = list.map(pr=>`<option value="${pr}">${pr}</option>`).join('');
+}
+
+// ─── TABS ──────────────────────────────────────────────────────────────
+function goTab(tab, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ─── MODAL MOVIMIENTO ──────────────────────────────────────────────────
+function openMov(tipo) {
+  curMovType = tipo;
+  const cfg = {
+    entrada:{icon:'📥',ttl:'Registrar entrada de stock',plbl:'Costo unitario',okCls:'bok-ent',okTxt:'Confirmar entrada'},
+    venta:  {icon:'💰',ttl:'Registrar venta',plbl:'Precio de venta unitario',okCls:'bok-ven',okTxt:'Confirmar venta'},
+    salida: {icon:'📤',ttl:'Registrar salida / merma',plbl:'Valor unitario',okCls:'bok-sal',okTxt:'Confirmar salida'},
+  };
+  const c = cfg[tipo];
+  document.getElementById('mov-icon').textContent = c.icon;
+  document.getElementById('mov-ttl').textContent  = c.ttl;
+  document.getElementById('mov-plbl').textContent = c.plbl;
+  const ok = document.getElementById('mov-ok');
+  ok.className = 'btn-ok '+c.okCls; ok.textContent = c.okTxt;
+  document.getElementById('mov-qty').value   = '';
+  document.getElementById('mov-price').value = '';
+  document.getElementById('mov-notes').value = '';
+  document.getElementById('mov-user').value  = lastUser;
+
+  // reset dual fields
+  document.getElementById('mov-qty').value = '';
+  document.getElementById('mov-qty-u') && (document.getElementById('mov-qty-u').value = '');
+  document.getElementById('mov-qty-kg') && (document.getElementById('mov-qty-kg').value = '');
+  onProductChange();
+  document.getElementById('ov-mov').classList.add('open');
+}
+function closeMov() { document.getElementById('ov-mov').classList.remove('open'); }
+
+// onProductChange moved to proteinas section
+
+async function saveMov() {
+  const pid   = document.getElementById('mov-prod').value;
+  const procEl = document.getElementById('mov-prod-type'); const proc = procEl ? procEl.value : '';
+  const sel    = document.getElementById('mov-prod');
+  const opt    = sel.options[sel.selectedIndex];
+  const isDual = opt && opt.dataset.dual === '1';
+  const qtyU   = isDual ? Number(document.getElementById('mov-qty-u').value)  : 0;
+  const qtyKg  = isDual ? Number(document.getElementById('mov-qty-kg').value) : 0;
+  const qty    = isDual ? qtyKg : Number(document.getElementById('mov-qty').value);
+  if (isDual && (!qtyU || qtyU<=0)) { toast('Ingresa el número de unidades','error'); return; }
+  if (isDual && (!qtyKg || qtyKg<=0)) { toast('Ingresa el peso total en kg','error'); return; }
+  const price = Number(document.getElementById('mov-price').value)||0;
+  const notes = document.getElementById('mov-notes').value.trim();
+  const user  = document.getElementById('mov-user').value.trim();
+  if (!pid)   { toast('Selecciona un producto','error'); return; }
+  if (!qty||qty<=0) { toast('Ingresa una cantidad válida','error'); return; }
+  const p = products.find(x=>x.id===pid);
+  if ((curMovType==='venta'||curMovType==='salida'||curMovType==='merma') && p && p.stock<qty) {
+    toast('Stock insuficiente: hay '+p.stock+' '+(p.unit||''),'error'); return;
+  }
+  const pName = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text.split(' (')[0] : pid;
+  const dualNote = isDual ? '['+qtyU+' uds | '+qtyKg+' kg] ' : '';
+  var tipoFinal = curMovType;
+  if (curMovType === 'salida') {
+    var tsEl = document.getElementById('mov-tipo-salida');
+    tipoFinal = tsEl ? tsEl.value : 'salida';
+  }
+  const mov = {
+    id:'mv'+Date.now(), date:new Date().toISOString().slice(0,16).replace('T',' '),
+    pid, pname: pName, proc, tipo:tipoFinal,
+    qty, qtyU: isDual ? qtyU : null,
+    price, notes: dualNote + notes, user
+  };
+  movements.push(mov);
+  if (curMovType==='entrada') p.stock = +(p.stock+qty).toFixed(2);
+  else                        p.stock = +(p.stock-qty).toFixed(2);
+  lastUser = user; ls('lastUser',user);
+  closeMov();
+  const r = await push('addMovement',{movement:mov,products});
+  toast(r.local?'Guardado sin conexión':'Movimiento registrado ✓', r.local?'info':'success');
+  renderAll();
+}
+
+// ─── MODAL PRODUCTO ────────────────────────────────────────────────────
+function openAddProduct() {
+  ['np-name','np-unit','np-fmt'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('np-stock').value='0';
+  document.getElementById('np-min').value='10';
+  document.getElementById('ov-prod').classList.add('open');
+}
+function closeAddProduct() { document.getElementById('ov-prod').classList.remove('open'); }
+
+async function saveProduct() {
+  const name = document.getElementById('np-name').value.trim();
+  if (!name) { toast('Ingresa el nombre','error'); return; }
+  const prod = {
+    id:'p'+Date.now(), name,
+    proteina: document.getElementById('np-prot').value,
+    tipo: document.getElementById('np-tipo').value,
+    unit: document.getElementById('np-unit').value.trim()||'kg',
+    fmt:  document.getElementById('np-fmt').value.trim(),
+    stock:Number(document.getElementById('np-stock').value)||0,
+    min:  Number(document.getElementById('np-min').value)||10,
+  };
+  products.push(prod);
+  closeAddProduct();
+  const r = await push('addProduct',{product:prod});
+  toast(r.local?'Guardado sin conexión':'Producto creado ✓', r.local?'info':'success');
+  renderAll();
+}
+
+// ─── TOAST ─────────────────────────────────────────────────────────────
+let _tt;
+function toast(msg, type='info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show '+type;
+  clearTimeout(_tt); _tt = setTimeout(()=>t.className='', 3200);
+}
+
+</script>
 </body>
 </html>
