@@ -146,7 +146,9 @@
   function saveIngredientes() {
     setSyncStatus('saving');
     if (IS_CONFIGURED) {
-      set(fbRef('state/ingredientes'), STATE.ingredientes);
+      set(fbRef('state/ingredientes'), STATE.ingredientes)
+        .then(() => setSyncStatus('synced'))
+        .catch(e => { setSyncStatus('error'); console.error(e); });
     } else {
       localStorage.setItem('pasteleriacosteo_v2', JSON.stringify(STATE));
       setSyncStatus('synced');
@@ -156,7 +158,9 @@
   function saveModProd() {
     setSyncStatus('saving');
     if (IS_CONFIGURED) {
-      set(fbRef('state/modProd'), STATE.modProd);
+      set(fbRef('state/modProd'), STATE.modProd)
+        .then(() => setSyncStatus('synced'))
+        .catch(e => { setSyncStatus('error'); console.error(e); });
     } else {
       localStorage.setItem('pasteleriacosteo_v2', JSON.stringify(STATE));
       setSyncStatus('synced');
@@ -166,7 +170,9 @@
   function savePorciones() {
     setSyncStatus('saving');
     if (IS_CONFIGURED) {
-      set(fbRef('state/porciones'), STATE.porciones);
+      set(fbRef('state/porciones'), STATE.porciones)
+        .then(() => setSyncStatus('synced'))
+        .catch(e => { setSyncStatus('error'); console.error(e); });
     } else {
       localStorage.setItem('pasteleriacosteo_v2', JSON.stringify(STATE));
       setSyncStatus('synced');
@@ -176,7 +182,9 @@
   function saveCustomRecipes() {
     setSyncStatus('saving');
     if (IS_CONFIGURED) {
-      set(fbRef('state/customRecipes'), STATE.customRecipes || {});
+      set(fbRef('state/customRecipes'), STATE.customRecipes || {})
+        .then(() => setSyncStatus('synced'))
+        .catch(e => { setSyncStatus('error'); console.error(e); });
     } else {
       localStorage.setItem('pasteleriacosteo_v2', JSON.stringify(STATE));
       setSyncStatus('synced');
@@ -1123,9 +1131,8 @@
   // ════════════════════════════════════════════════
   // INIT
   // ════════════════════════════════════════════════
-  window.addEventListener('DOMContentLoaded', () => {
-    initFirebase();
-  });
+  window._startApp = initFirebase;
+  // No llamar initFirebase automáticamente — espera la contraseña
 </script>
 
 <style>
@@ -1285,13 +1292,38 @@
   .porcion-input{width:58px;padding:4px 6px;border:1px solid var(--gold);border-radius:6px;font-size:13px;font-weight:700;text-align:center;color:var(--cocoa);background:white;}
   .porcion-cost{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:700;color:var(--cocoa);white-space:nowrap;}
 
+  /* PASSWORD SCREEN */
+  #passwordScreen{position:fixed;inset:0;background:var(--cocoa);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10000;}
+  .pwd-logo{font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--gold-light);letter-spacing:3px;margin-bottom:8px;}
+  .pwd-sub{color:#a08060;font-size:13px;margin-bottom:36px;letter-spacing:1px;}
+  .pwd-box{background:rgba(255,255,255,0.05);border:1px solid rgba(201,168,76,0.3);border-radius:16px;padding:32px;width:320px;text-align:center;}
+  .pwd-label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold);margin-bottom:12px;}
+  .pwd-input{width:100%;padding:12px 16px;background:rgba(255,255,255,0.08);border:1px solid rgba(201,168,76,0.4);border-radius:8px;color:var(--gold-light);font-size:18px;text-align:center;letter-spacing:4px;font-family:'DM Sans',sans-serif;outline:none;}
+  .pwd-input:focus{border-color:var(--gold);background:rgba(255,255,255,0.12);}
+  .pwd-btn{margin-top:16px;width:100%;padding:12px;background:var(--gold);color:var(--cocoa);border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:1px;}
+  .pwd-btn:hover{background:var(--gold-light);}
+  .pwd-error{color:#F87171;font-size:12px;margin-top:10px;min-height:18px;}
+
   @media(max-width:640px){.main{padding:16px;}.nav-tabs{padding:0 8px;}header{padding:12px 16px;}}
 </style>
 </head>
 <body>
 
+<!-- PASSWORD SCREEN -->
+<div id="passwordScreen">
+  <div class="pwd-logo">Pastelería · Costeo</div>
+  <div class="pwd-sub">Sistema de Gestión Interno</div>
+  <div class="pwd-box">
+    <div class="pwd-label">🔒 Ingresa tu contraseña</div>
+    <input type="password" class="pwd-input" id="pwdInput" placeholder="••••••••"
+      onkeydown="if(event.key==='Enter') checkPassword()">
+    <button class="pwd-btn" onclick="checkPassword()">Entrar</button>
+    <div class="pwd-error" id="pwdError"></div>
+  </div>
+</div>
+
 <!-- LOADING SCREEN -->
-<div id="loadingScreen">
+<div id="loadingScreen" style="display:none">
   <div class="loading-logo">Pastelería · Costeo</div>
   <div class="loading-sub">Conectando con la nube...</div>
   <div class="spinner"></div>
@@ -1566,13 +1598,39 @@
 </div><!-- /appShell -->
 
 <script>
-  // Show setup banner if Firebase not configured
+  // ════════════════════════════════════════════════
+  // CONTRASEÑA — cámbiala aquí
+  // ════════════════════════════════════════════════
+  const APP_PASSWORD = 'pasteleria2025';
+
+  function checkPassword() {
+    const val = document.getElementById('pwdInput').value;
+    if (val === APP_PASSWORD) {
+      // Guardar sesión por 8 horas
+      sessionStorage.setItem('auth', Date.now());
+      document.getElementById('passwordScreen').style.display = 'none';
+      document.getElementById('loadingScreen').style.display = 'flex';
+      // Iniciar Firebase (definido en el módulo)
+      window._startApp && window._startApp();
+    } else {
+      const err = document.getElementById('pwdError');
+      err.textContent = 'Contraseña incorrecta. Intenta de nuevo.';
+      document.getElementById('pwdInput').value = '';
+      document.getElementById('pwdInput').focus();
+      setTimeout(() => err.textContent = '', 3000);
+    }
+  }
+
+  // Verificar si ya tiene sesión activa (menos de 8 horas)
   window.addEventListener('DOMContentLoaded', () => {
-    const cfg = document.querySelector('script[type="module"]').textContent;
-    if (cfg.includes('TU_API_KEY_AQUI')) {
-      setTimeout(() => {
-        document.getElementById('setupBanner').classList.add('visible');
-      }, 1200);
+    const auth = sessionStorage.getItem('auth');
+    const ocho_horas = 8 * 60 * 60 * 1000;
+    if (auth && (Date.now() - parseInt(auth)) < ocho_horas) {
+      document.getElementById('passwordScreen').style.display = 'none';
+      document.getElementById('loadingScreen').style.display = 'flex';
+      window._startApp && window._startApp();
+    } else {
+      document.getElementById('pwdInput').focus();
     }
   });
 </script>
